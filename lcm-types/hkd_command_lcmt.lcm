@@ -1,0 +1,8 @@
+struct hkd_command_lcmt {
+    int32_t N_mpcsteps;
+    double mpc_times[15];
+    float hkd_controls[15][24];
+    int32_t contacts[15][4];
+    double statusTimes[15][4];
+    float foot_placement[12];   
+}

@@ -1,0 +1,18 @@
+# Generated on Mon Aug  5 18:20:08 2019
+__collection-name__: user-parameters
+kp_fleg   :   [150, 4, 4]
+kd_fleg   :   [5,  1, 1]
+kp_bleg   :   [150, 4, 4]
+kd_bleg   :   [5,  1, 1]
+tau_ff : 0.0
+zero : 0
+calibrate : 0
+# home_fleg           : [0, -1.4137,2.042]
+# home_bleg           : [0, -0.6912,1.7279]
+# home_pos            : [0,0,0.2771]
+# home_rpy            : [0,-0.1208,0]
+home_fleg           : [0, -0.65,1.569]
+home_bleg           : [0, -0.6, 1.8]
+home_pos            : [0, 0, 0.2565]
+home_rpy            : [0,-0.12,0]
+

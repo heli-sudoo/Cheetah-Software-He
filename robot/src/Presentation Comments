@@ -1,0 +1,23 @@
+Presentation comments
+Precise time control (not adding redundant comments)
+Make 12 mins strict
+Flexible slides at the end of presentation
+Prioritize the most important things
+
+MHPC Code Comments
+GDB debuging for shared libraries
+
+Croccodyl Comments
+Check possible flags in pinnocio to disable free joints
+
+Google Comments
+Talk to Tingnan informally if not hearing from him by Friday
+
+ICRA
+Think about MHPC applications
+1. QP as a low-level WB controller
+2. Add a pseudo value function (e.g., LQR for roll) to the QP cost function
+3. Compare MHPC controller with convec MPC controller (e.g. disturbance rejection, accelerating to desired speed)
+4. Leave around one month (hardware MHPC) for SMT paper
+
+

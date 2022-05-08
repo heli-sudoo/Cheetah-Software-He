@@ -1,0 +1,16 @@
+__collection-name__: user-parameters
+
+plan_dur:       0.462
+mpc_dt:         0.011
+control_dur:    0.033
+max_AL_iters:   3
+max_DDP_iters:   1
+Kp_jointPD:       [100, 50, 50]
+Kd_jointPD:       [2, 2, 2]
+angles_jointPD:   [0, -0.85, 1.8]
+draw_plan:      0
+
+Swing_Kp_cartesian : [700, 700, 100]
+Swing_Kd_cartesian : [7, 7, 7]
+Swing_Kp_joint     : [0, 0, 0]
+Swing_Kd_joint     : [0.2, 0.2, 0.2]
