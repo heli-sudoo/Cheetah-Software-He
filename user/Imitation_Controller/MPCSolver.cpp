@@ -114,12 +114,12 @@ void MPCSolver<T>::update()
     solver.set_multiPhaseProblem(multiple_phases);
     solver.set_initial_condition(xinit);
     solver.solve(ddp_options);    
-    mpc_mutex.unlock();
-
+    
     update_foot_placement();    
     publish_mpc_cmd();
     publish_debugfoot();
     // opt_problem.lcm_publish();
+    mpc_mutex.unlock();
 }
 
 template<typename T>
@@ -155,7 +155,7 @@ void MPCSolver<T>::mpcdata_lcm_handler(const lcm::ReceiveBuffer *rbuf, const std
 template<typename T>
 void MPCSolver<T>::update_foot_placement()
 {
-    mpc_mutex.lock();
+    // mpc_mutex.lock();
     int found_next_ctact[4] = {0};
     const int& n_phases = opt_problem_data.ref_data_ptr->n_phases;
     const auto& ctactSeq = opt_problem_data.ref_data_ptr->contactSeq;
@@ -185,7 +185,7 @@ void MPCSolver<T>::update_foot_placement()
             break;
         }
     }
-    mpc_mutex.unlock();
+    // mpc_mutex.unlock();
 }
 
 template<typename T>
