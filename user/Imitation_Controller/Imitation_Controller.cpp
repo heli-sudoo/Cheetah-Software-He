@@ -77,6 +77,9 @@ void Imitation_Controller::initializeController()
     iter_loco = 0;
     iter_between_mpc_update = 0;
     nsteps_between_mpc_update = 11;
+    yaw_flip_plus_times = 0;
+    yaw_flip_mins_times = 0;
+    raw_yaw_cur = _stateEstimate->rpy[2];
 }
 
 void Imitation_Controller::handleMPCLCMthread()
@@ -128,6 +131,19 @@ void Imitation_Controller::runController()
         desired_command_mode = static_cast<int>(_controlParameters->control_mode);
     }
 
+    raw_yaw_pre = raw_yaw_cur;
+    raw_yaw_cur = _stateEstimate->rpy[2];
+
+    if (raw_yaw_cur - raw_yaw_pre < -2) // pi -> -pi
+    {
+        yaw_flip_plus_times++;
+    }
+    if (raw_yaw_cur - raw_yaw_pre > 2) // -pi -> pi
+    {
+        yaw_flip_mins_times++;
+    }
+    yaw = raw_yaw_cur + 2*PI*yaw_flip_plus_times - 2*PI*yaw_flip_mins_times;
+    
     switch (desired_command_mode)
     {
     case CONTROL_MODE::locomotion:
@@ -188,6 +204,7 @@ void Imitation_Controller::locomotion_ctrl()
     for (int i = 0; i < 4; i++)
     {
         footSwingTrajectories[i].setHeight(0.06);
+        // footSwingTrajectories[i].setHeight(0.08);
         // footSwingTrajectories[i].setFinalPosition(pf[i]);
 
         // if the leg is in swing
@@ -305,6 +322,7 @@ void Imitation_Controller::update_mpc_if_needed()
         mpc_data.p[i] = se.position[i];
         mpc_data.omegaBody[i] = se.omegaBody[i];
         mpc_data.vWorld[i] = se.vWorld[i];
+        mpc_data.rpy[2] = yaw;
     }
     for (int l = 0; l < 4; l++)
     {
@@ -335,11 +353,15 @@ void Imitation_Controller::get_a_val_from_solution_bag()
     mpc_cmd_mutex.lock();
     for (int i = 0; i < mpc_cmds.N_mpcsteps - 1; i++)
     {
-        if (mpc_time >= mpc_cmds.mpc_times[i] && mpc_time < mpc_cmds.mpc_times[i + 1])
+        if (mpc_time > mpc_cmds.mpc_times[i] || almostEqual_number(mpc_time, mpc_cmds.mpc_times[i]))
         {
-            mpc_control = mpc_control_bag[i];
-            break;
-        }
+            if (mpc_time < mpc_cmds.mpc_times[i + 1])
+            {
+                mpc_control = mpc_control_bag[i];
+                break;
+            }
+            
+        }              
     }
     mpc_cmd_mutex.unlock();
 }
@@ -410,14 +432,18 @@ void Imitation_Controller::getContactStatus()
     mpc_cmd_mutex.lock();
     for (int i = 0; i < mpc_cmds.N_mpcsteps - 1; i++)
     {
-        if (mpc_time >= mpc_cmds.mpc_times[i] && mpc_time < mpc_cmds.mpc_times[i + 1])
+        if (mpc_time > mpc_cmds.mpc_times[i] || almostEqual_number(mpc_time, mpc_cmds.mpc_times[i]))
         {
-            for (int l = 0; l < 4; l++)
+            if (mpc_time < mpc_cmds.mpc_times[i + 1])
             {
-                contactStatus[l] = mpc_cmds.contacts[i][l];
+                for (int l = 0; l < 4; l++)
+                {
+                    contactStatus[l] = mpc_cmds.contacts[i][l];                    
+                }
+                break;
             }
-            break;
-        }
+            
+        }       
     }
     mpc_cmd_mutex.unlock();
 }

@@ -117,6 +117,13 @@ public:
     std::mutex mpc_data_mutex;
     std::thread mpcLCMthread;
 
+    // Tracking yaw angle
+    int yaw_flip_plus_times;
+    int yaw_flip_mins_times;
+    float raw_yaw_pre;
+    float raw_yaw_cur;
+    float yaw;
+
 private:
     VecM<float, 24> mpc_control;
     Vec3<float> init_joint_pos[4];
