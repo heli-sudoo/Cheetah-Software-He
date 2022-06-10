@@ -73,7 +73,7 @@ bool MultiPhaseDDP<T>::backward_sweep_regularized(T &regularization, HSDDP_OPTIO
         regularization = std::max(regularization * option.update_regularization, T(1e-03));
         iter++;
 
-        if (regularization > 1e6)
+        if (regularization > 1e2)
         {
             printf("Regularization term exceeds maximum value! \n");
             printf("Optimization terminates! \n");
@@ -150,7 +150,7 @@ bool MultiPhaseDDP<T>::forward_iteration(HSDDP_OPTION &option)
 #ifdef TIME_BENCHMARK
     fit_iter = 0;
 #endif
-    while (eps > 1e-8)
+    while (eps > 1e-5)
     {
         forward_sweep(eps, option, false); // perform forward sweep but not computing dynamics linearization
 #ifdef DEBUG
