@@ -24,14 +24,14 @@ void HKDProblem<T>::initialization()
         return;
     }
 
-    grf_reb_param.delta = 2;
+    grf_reb_param.delta = 1;
     grf_reb_param.delta_min = 0.001;
     grf_reb_param.eps = 0.2;
     swing_reb_param.delta = 2;
     swing_reb_param.delta_min = 0.01;
     swing_reb_param.eps = 0.02;
     td_al_param.lambda = 0;
-    td_al_param.sigma = 5;
+    td_al_param.sigma = 100;
 
     for (int i = 0; i < n_phases; i++)
     {
@@ -121,6 +121,11 @@ void HKDProblem<T>::update()
             phases.back()->push_back();
         }
     }
+    for (auto phase : pdata->phase_ptrs)
+    {
+        phase->reset_params();
+    }
+    
 }
 
 template<typename T>
@@ -160,16 +165,19 @@ void HKDProblem<T>::create_problem_one_phase(shared_ptr<SinglePhase<T,24,24,0>> 
     phase->set_resetmap_partial(resetmap_partial_callback);
 
     /* set cost management */
+    // tracking cost
     shared_ptr<HKDTrackingCost<T>> track_cost;
     track_cost = make_shared<HKDTrackingCost<T>>(ctact);
     track_cost->set_reference(&(ref_data->Xr[idx]), &(ref_data->Ur[idx]), &(ref_data->Yr[idx]));
     phase->add_cost(track_cost);
 
+    // foot regularization
     shared_ptr<HKDFootPlaceReg<T>> foot_reg;
     foot_reg = make_shared<HKDFootPlaceReg<T>>(ctact);
     foot_reg->set_reference(&(ref_data->Xr[idx]));
     phase->add_cost(foot_reg);
 
+    // previous solution regularization
     if (idx < Xbar_prev.size())
     {
         shared_ptr<PrevSolution_Reg<T>> prev_reg;
