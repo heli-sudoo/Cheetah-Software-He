@@ -13,53 +13,20 @@ public:
     {
         /* trotting cost */
         /* State weighting matrices */
-        Qeul.setZero();
-        Qpos.setZero();
-        Qw.setZero();
-        Qv.setZero();
-        QqJ.setZero();
-
-        Qeul.diagonal() << 10, 5, 5;
-        Qpos.diagonal() << 0, 0, 20;
-        Qw.diagonal() << .1, .1, .5;
-        Qv.diagonal() << 4, 4, 10;
-        QqJ.diagonal() << VecM<T, 3>::Constant(.5 * (1 - contact[0])),
-                        VecM<T, 3>::Constant(.5 * (1 - contact[1])),
-                        VecM<T, 3>::Constant(.5 * (1 - contact[2])),
-                        VecM<T, 3>::Constant(.5 * (1 - contact[3]));
-        this->Q.topLeftCorner(3, 3) << Qeul;
-        this->Q.block(3, 3, 3, 3) << Qpos;
-        this->Q.block(6, 6, 3, 3) << Qw;
-        this->Q.block(9, 9, 3, 3) << Qv;
-        this->Q.bottomRightCorner(12, 12) << QqJ;
-
-        /* Terminal state weighting matrix */
-        VecM<T, 24> scale;
-        scale << .5, .5, .5, 0, 0, 15, 1, .5, 1, 1, 1, 1, .5 * VecM<T, 12>::Ones();
-        this->Qf = 20 * scale.asDiagonal() * this->Q;
-
-        /* Control weighting matrices */
-        this->R.setZero();
-        this->R.topLeftCorner(12, 12) = .2 * MatMN<T, 12, 12>::Identity();      // GRF
-        this->R.bottomRightCorner(12, 12) = .5 * MatMN<T, 12, 12>::Identity();  // Commanded joint vel
-
-        /* pacing cost */
-        /* State weighting matrices */
         // Qeul.setZero();
         // Qpos.setZero();
         // Qw.setZero();
         // Qv.setZero();
         // QqJ.setZero();
 
-        // Qeul.diagonal() << 1, 5, 5;
-        // Qpos.diagonal() << 0, 0, 15;
-        // Qw.diagonal() << .2, .2, .2;
-        // Qv.diagonal() << 4, 1, 4;
-        // QqJ.diagonal() << 1*(1-contact[0]),1-contact[0],1-contact[0],
-        //                   1*(1-contact[1]),1-contact[1],1-contact[1],
-        //                   1*(1-contact[2]),1-contact[2],1-contact[2],
-        //                   1*(1-contact[3]),1-contact[3],1-contact[3];
-        // QqJ = 0.1 * QqJ;
+        // Qeul.diagonal() << 10, 5, 5;
+        // Qpos.diagonal() << 0, 0, 20;
+        // Qw.diagonal() << .1, .1, .5;
+        // Qv.diagonal() << 4, 4, 10;
+        // QqJ.diagonal() << VecM<T, 3>::Constant(.5 * (1 - contact[0])),
+        //                 VecM<T, 3>::Constant(.5 * (1 - contact[1])),
+        //                 VecM<T, 3>::Constant(.5 * (1 - contact[2])),
+        //                 VecM<T, 3>::Constant(.5 * (1 - contact[3]));
         // this->Q.topLeftCorner(3, 3) << Qeul;
         // this->Q.block(3, 3, 3, 3) << Qpos;
         // this->Q.block(6, 6, 3, 3) << Qw;
@@ -68,51 +35,79 @@ public:
 
         // /* Terminal state weighting matrix */
         // VecM<T, 24> scale;
-        // scale << 1, 1, 1, 0, 0, 15, 1, .5, 1, 1, 1, 1, .5 * VecM<T, 12>::Ones();
+        // scale << .5, .5, .5, 0, 0, 15, 1, .5, 1, 1, 1, 1, .5 * VecM<T, 12>::Ones();
         // this->Qf = 20 * scale.asDiagonal() * this->Q;
 
         // /* Control weighting matrices */
         // this->R.setZero();
-        // this->R.topLeftCorner(12, 12) = .1 * MatMN<T, 12, 12>::Identity();      // GRF
-        // this->R.bottomRightCorner(12, 12) = .01 * MatMN<T, 12, 12>::Identity();  // Commanded joint vel
+        // this->R.topLeftCorner(12, 12) = .2 * MatMN<T, 12, 12>::Identity();      // GRF
+        // this->R.bottomRightCorner(12, 12) = .5 * MatMN<T, 12, 12>::Identity();  // Commanded joint vel
+
+        /* pacing cost */
+        /* State weighting matrices */
+        Qeul.setZero();
+        Qpos.setZero();
+        Qw.setZero();
+        Qv.setZero();
+        QqJ.setZero();
+
+        Qeul.diagonal() << 1, 5, 5;
+        Qpos.diagonal() << 0, 0, 15;
+        Qw.diagonal() << .2, .2, .2;
+        Qv.diagonal() << 4, 1, 4;
+        QqJ.diagonal() << 1*(1-contact[0]),1-contact[0],1-contact[0],
+                          1*(1-contact[1]),1-contact[1],1-contact[1],
+                          1*(1-contact[2]),1-contact[2],1-contact[2],
+                          1*(1-contact[3]),1-contact[3],1-contact[3];
+        QqJ = 0.1 * QqJ;
+        this->Q.topLeftCorner(3, 3) << Qeul;
+        this->Q.block(3, 3, 3, 3) << Qpos;
+        this->Q.block(6, 6, 3, 3) << Qw;
+        this->Q.block(9, 9, 3, 3) << Qv;
+        this->Q.bottomRightCorner(12, 12) << QqJ;
+
+        /* Terminal state weighting matrix */
+        VecM<T, 24> scale;
+        scale << 1, 1, 1, 0, 0, 15, 1, .5, 1, 1, 1, 1, .5 * VecM<T, 12>::Ones();
+        this->Qf = 20 * scale.asDiagonal() * this->Q;
+
+        /* Control weighting matrices */
+        this->R.setZero();
+        this->R.topLeftCorner(12, 12) = .1 * MatMN<T, 12, 12>::Identity();      // GRF
+        this->R.bottomRightCorner(12, 12) = .01 * MatMN<T, 12, 12>::Identity();  // Commanded joint vel
 
         /* turning cost */
         /* State weighting matrices */
-        // MatMN<T,3,3> Qeul;
-        // MatMN<T,3,3> Qpos;
-        // MatMN<T,3,3> Qw;
-        // MatMN<T,3,3> Qv;
-        // MatMN<T,12,12> QqJ;
         // Qeul.setZero();
         // Qpos.setZero();
         // Qw.setZero();
         // Qv.setZero();
         // QqJ.setZero();
 
-        // Qeul.diagonal() << .5,2,.5;
-        // Qpos.diagonal() << 0, 0, 25;
-        // Qw.diagonal() << .5,1,.5;
-        // Qv.diagonal() << 1,1,1;
-        // QqJ.diagonal() << 20*(1-contact[0]),1-contact[0],1-contact[0],
-        //                   20*(1-contact[1]),1-contact[1],1-contact[1],
-        //                   20*(1-contact[2]),1-contact[2],1-contact[2],
-        //                   20*(1-contact[3]),1-contact[3],1-contact[3];
-        // QqJ = 0.05 * QqJ;
-        // this->Q.topLeftCorner(3,3) << Qeul;
-        // this->Q.block(3,3,3,3) << Qpos;
-        // this->Q.block(6,6,3,3) << Qw;
-        // this->Q.block(9,9,3,3) << Qv;
-        // this->Q.bottomRightCorner(12,12) << QqJ;
+        // Qeul.diagonal() << .1, 7, 7;
+        // Qpos.diagonal() << 0, 0, 15;
+        // Qw.diagonal() << .2, .2, .2;
+        // Qv.diagonal() << .5, .5, 2;
+        // QqJ.diagonal() << 40*(1-contact[0]),1-contact[0],1-contact[0],
+        //                   40*(1-contact[1]),1-contact[1],1-contact[1],
+        //                   40*(1-contact[2]),1-contact[2],1-contact[2],
+        //                   40*(1-contact[3]),1-contact[3],1-contact[3];
+        // this->Q.topLeftCorner(3, 3) << Qeul;
+        // this->Q.block(3, 3, 3, 3) << Qpos;
+        // this->Q.block(6, 6, 3, 3) << Qw;
+        // this->Q.block(9, 9, 3, 3) << Qv;
+        // this->Q.bottomRightCorner(12, 12) << QqJ;
 
+        // QqJ *= 0.3;
         // /* Terminal state weighting matrix */
-        // VecM<T,24> scale;
-        // scale << .1, .1, .1, 0, 0, 20, 1, 1, 1, 1, 1, 1, .5*VecM<T,12>::Ones();
-        // this->Qf = 20 * scale.asDiagonal() * this->Q;
+        // VecM<T, 24> scale;
+        // scale << 1, 1, 1, 0, 0, 10, 1, .5, 1, 1, 1, 1, .5 * VecM<T, 12>::Ones();
+        // this->Qf = 15 * scale.asDiagonal() * this->Q;
 
         // /* Control weighting matrices */
         // this->R.setZero();
-        // this->R.topLeftCorner(12,12) = .01*MatMN<T,12,12>::Identity();
-        // this->R.bottomRightCorner(12,12) = .01*MatMN<T,12,12>::Identity();
+        // this->R.topLeftCorner(12, 12) = .1 * MatMN<T, 12, 12>::Identity();      // GRF
+        // this->R.bottomRightCorner(12, 12) = .01 * MatMN<T, 12, 12>::Identity();  // Commanded joint vel
     }
 
 private:
@@ -140,12 +135,21 @@ public:
         Qfoot.diagonal() << 0,contact[0],0,
                             0,contact[1],0,
                             0,contact[2],0,
-                            0,contact[3],0;
-        Qfoot *= 20.0;
+                            0,contact[3],0;       
+        dprel_dx.middleCols(3,3) << -contact[0]*Mat3<T>::Identity(),
+                                    -contact[1]*Mat3<T>::Identity(),
+                                    -contact[2]*Mat3<T>::Identity(),
+                                    -contact[3]*Mat3<T>::Identity();
         dprel_dx.block(0, 12, 3, 3) << contact[0]*Mat3<T>::Identity();
         dprel_dx.block(3, 15, 3, 3) << contact[1]*Mat3<T>::Identity();
         dprel_dx.block(6, 18, 3, 3) << contact[2]*Mat3<T>::Identity();
         dprel_dx.block(9, 21, 3, 3) << contact[3]*Mat3<T>::Identity(); 
+
+        // pacing
+        //  Qfoot *= 15.0;
+
+         // turning
+         Qfoot *= 10;
     }
 
     void running_cost(RCost&, const State& x, const Contrl& u, const Output& y, T dt, int k=0) override;
