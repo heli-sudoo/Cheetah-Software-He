@@ -129,16 +129,12 @@ void SinglePhase<T,xs,us,ys>::forward_sweep(T eps, HSDDP_OPTION &option, bool ca
         { // This flag is turned off when performing line search for speed up
             dynamics_partial(A->at(k), B->at(k), C->at(k), D->at(k), X->at(k), U->at(k));
         }
-        // delta_x = X->at(k) - (*(Xr + k));
-        // delta_u = U->at(k) - (*(Ur + k));
-        // delta_y = Y->at(k) - (*(Yr + k));
         /* compute running cost*/
         // costContainer.running_cost(rcostData->at(k), delta_x, delta_u, delta_y, dt, k);
         costContainer.running_cost(rcostData->at(k), X->at(k), U->at(k), Y->at(k), dt, k);
         if (calc_partial)
         {
             /* compute running cost*/
-            // costContainer.running_cost_par(rcostData->at(k), delta_x, delta_u, delta_y, dt, k);
             costContainer.running_cost_par(rcostData->at(k), X->at(k), U->at(k), Y->at(k), dt, k);
         }
 
@@ -155,8 +151,6 @@ void SinglePhase<T,xs,us,ys>::forward_sweep(T eps, HSDDP_OPTION &option, bool ca
         Vprev = V->at(k);
     }
     /* compute terminal cost and its partials */
-    // delta_x = X->at(k) - (*(Xr + k));
-    // costContainer.terminal_cost(*tcostData, delta_x);
     costContainer.terminal_cost(*tcostData, X->at(k), k);
     if (calc_partial)
     {
@@ -243,15 +237,11 @@ void SinglePhase<T,xs,us,ys>::update_running_cost_with_pconstr(RCostData<T, xs, 
             rcost.lx += eps * Bard[i] * c.gx * dt;
             rcost.lu += eps * Bard[i] * c.gu * dt;
             rcost.ly += eps * Bard[i] * c.gy * dt;
-            // Gauss Newton approximation of the exact hessian
-            rcost.lxx += eps * (c.gx * Bardd[i] * c.gx.transpose() + Bard[i] * c.gx * c.gx.transpose()) * dt;
-            rcost.luu += eps * (c.gu * Bardd[i] * c.gu.transpose() + Bard[i] * c.gu * c.gu.transpose()) * dt;
-            rcost.lyy += eps * (c.gy * Bardd[i] * c.gy.transpose() + Bard[i] * c.gy * c.gy.transpose()) * dt;
-            // rcost.lxx += eps * (c.gx * Bardd[i] * c.gx.transpose()) * dt;
-            // rcost.luu += eps * (c.gu * Bardd[i] * c.gu.transpose()) * dt;
-            // rcost.lyy += eps * (c.gy * Bardd[i] * c.gy.transpose()) * dt;
+            rcost.lxx += eps * dt * (Bardd[i]* c.gx * c.gx.transpose() + Bard[i]*c.gxx);
+            rcost.luu += eps * dt * (Bardd[i]* c.gu * c.gu.transpose() + Bard[i]*c.guu) ;
+            rcost.lyy += eps * dt * (Bardd[i]* c.gy * c.gy.transpose() + Bard[i]*c.gyy) ;
         }
-    }
+    } 
 }
 
 template <typename T, size_t xs, size_t us, size_t ys>
@@ -269,12 +259,14 @@ void SinglePhase<T,xs,us,ys>::update_terminal_cost_with_tconstr(vector<TConstrDa
         const T &sigma = al_params[i].sigma;
         const T &lambda = al_params[i].lambda;
         const auto &e = tconstrsData[i];
-        tcostData->Phi += pow(sigma * e.h / 2, 2) + lambda * e.h;
+        tcostData->Phi += .5*sigma*pow(e.h, 2) + lambda * e.h;
         if (flag)
         {
-            tcostData->Phix += sigma * sigma / 2 * e.hx * e.h + lambda * e.hx;
+            tcostData->Phix += sigma * e.hx * e.h + lambda * e.hx;
             // Gauss Newton method to approximate the exact hessian hxx = hx*hx.transpose
-            tcostData->Phixx += sigma * sigma / 2 * (e.hx * e.hx.transpose() + e.h * e.hx * e.hx.transpose()) + lambda * e.hx * e.hx.transpose();
+            tcostData->Phixx += sigma * (e.hx * e.hx.transpose() + e.h * e.hx * e.hx.transpose()) + lambda * e.hx * e.hx.transpose();
+
+
         }
     }
 }
@@ -307,9 +299,9 @@ void SinglePhase<T,xs,us,ys>::compute_barrier(vector<IneqConstrData<T, xs, us, y
         }
         else
         {
-            Bar[i] = (double)(k - 1) / k * (pow((c.g - k * delta) / ((k - 1) * delta), k) - 1) - log(delta);
-            Bard[i] = pow((c.g - k * delta) / ((k - 1) * delta), (k - 1)) / delta;
-            Bardd[i] = pow((c.g - k * delta) / ((k - 1) * delta), k - 2);
+            Bar[i] = .5*(((c.g-2*delta)/delta)*((c.g-2*delta)/delta) - 1) - log(delta);
+            Bard[i] = (c.g-2*delta)/delta/delta;
+            Bardd[i] = pow(delta, -2);
         }
     }
 }
@@ -352,6 +344,8 @@ void SinglePhase<T,xs,us,ys>::update_REB_params(HSDDP_OPTION& option)
 {
     constraintContainer.update_reb_params(option);
 }
+
+
 /*  
     @brief  Push back n (zero) elements to the trajectory and path constraints
 */
