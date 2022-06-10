@@ -24,12 +24,18 @@ struct IneqConstrData
     VecM<T, xs> gx;
     VecM<T, us> gu;
     VecM<T, ys> gy;  
+	MatMN<T, xs, xs> gxx;
+	MatMN<T, us, us> guu;
+	MatMN<T, ys, ys> gyy;
 
 	IneqConstrData(){
         g = 0;
         gx.setZero();
         gu.setZero();
         gy.setZero();
+		gxx.setZero();
+		guu.setZero();
+		gyy.setZero();
     }
 	static IneqConstrData<T,xs,us,ys> Zero(){
 		IneqConstrData<T,xs,us,ys> data;
@@ -44,10 +50,12 @@ struct TConstrData
     EIGEN_MAKE_ALIGNED_OPERATOR_NEW
     T h;  
     VecM<T, xs> hx;
+	MatMN<T, xs, xs> hxx;
 
 	TConstrData(){
 		h = 0;
 		hx.setZero();
+		hxx.setZero();
 	}    
 };
 
@@ -263,7 +271,12 @@ public:
 		params = vector<AL_Param_Struct<T>>(size, param_init_);
 	}
 	void reset_params(){
-		initialize_params(param_init);
+		// initialize_params(param_init);
+		for (auto &param : params)
+		{
+			param.sigma = param_init.sigma;
+		}
+		
 	}
 	void update_params(T thresh, T beta){
 		for (int i = 0; i < size; i++)
