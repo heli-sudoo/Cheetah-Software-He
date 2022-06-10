@@ -49,6 +49,8 @@ public:
     void handleMPCcommand(const lcm::ReceiveBuffer *rbuf, const std::string &chan,
                           const hkd_command_lcmt *msg);
     void handleMPCLCMthread();
+    void avoid_leg_collision_CT(int leg);
+    void compute_knee_position(Vec3<float>&p, Vec3<float>&q, int leg);
 
 private: //help functions
     void draw_swing();

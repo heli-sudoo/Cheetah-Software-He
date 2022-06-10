@@ -203,8 +203,8 @@ void Imitation_Controller::locomotion_ctrl()
     }
     for (int i = 0; i < 4; i++)
     {
-        footSwingTrajectories[i].setHeight(0.06);
-        // footSwingTrajectories[i].setHeight(0.08);
+        // footSwingTrajectories[i].setHeight(0.06);
+        footSwingTrajectories[i].setHeight(0.08);
         // footSwingTrajectories[i].setFinalPosition(pf[i]);
 
         // if the leg is in swing
@@ -263,6 +263,8 @@ void Imitation_Controller::locomotion_ctrl()
 
             // don't change too fast in joing space
             _legController->commands[i].kdJoint = Vec3<float>(.2,.1,.1).asDiagonal();
+
+            // avoid_leg_collision_CT(i);
         }
         // else in stance
         else
@@ -463,4 +465,65 @@ void Imitation_Controller::getStatusDuration()
         }
     }
     mpc_cmd_mutex.unlock();
+}
+
+void Imitation_Controller::avoid_leg_collision_CT(int i)
+{
+    Vec3<float> dfoot, dknee, pknee1, pknee2;
+    Mat3<float> Kp_collision;
+    Vec3<float> grad;
+    Kp_collision = Vec3<float>(.5,.5,.5).asDiagonal();
+    grad.setZero();
+    float r = .2;
+
+    compute_knee_position(pknee1, _legController->datas[i].q, i);
+
+    switch (i)
+    {
+    case 0:
+        dfoot = pFoot[0] - pFoot[1];
+        compute_knee_position(pknee2, _legController->datas[1].q, 1);        
+        break;
+    case 1:
+        dfoot = pFoot[1] - pFoot[0];
+        compute_knee_position(pknee2, _legController->datas[0].q, 0);
+        break;    
+    case 2:
+        dfoot = pFoot[2] - pFoot[3];
+        compute_knee_position(pknee2, _legController->datas[3].q, 3);
+        break;    
+    case 3:
+        dfoot = pFoot[3] - pFoot[2];
+        compute_knee_position(pknee2, _legController->datas[2].q, 2);
+        break;
+    }
+    if (dfoot.norm() < r)
+    {
+        grad -= pow(dfoot.norm(), -2) * dfoot;
+    }
+    dknee = pknee1 - pknee2;
+    if (dknee.norm() < r)
+    {
+        grad -= pow(dknee.norm(), -1) * dknee;
+    }    
+    
+    const auto &seResult = _stateEstimator->getResult();
+    _legController->commands[i].forceFeedForward = -Kp_collision * seResult.rBody * grad;
+}
+
+void Imitation_Controller::compute_knee_position(Vec3<float>&p, Vec3<float>&q, int leg)
+{
+    float l1 = _quadruped->_abadLinkLength;
+    float l2 = _quadruped->_hipLinkLength;
+    float sideSign = _quadruped->getSideSign(leg);
+
+    float s1 = std::sin(q(0));
+    float s2 = std::sin(q(1));
+
+    float c1 = std::cos(q(0));
+    float c2 = std::cos(q(1));
+
+    p[0] = l2 * s2;
+    p[1] = l1 * sideSign * c1  + l2 * c2 * s1;
+    p[2] = l1 * sideSign * s1  - l2 * c1 * c2;
 }
