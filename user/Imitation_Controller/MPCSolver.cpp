@@ -12,9 +12,10 @@ template<typename T>
 void MPCSolver<T>::initialize()
 {
     /* Initialize tunning parameters for DDP solver */
-    ddp_options.update_penalty = 5;
+    ddp_options.update_penalty = 7;
     ddp_options.update_relax = 0.1;
-    ddp_options.update_ReB = 7;
+    ddp_options.update_ReB = 8;
+    ddp_options.update_regularization = 4;
     ddp_options.max_DDP_iter = 10;
     ddp_options.max_AL_iter = 15;
     ddp_options.DDP_thresh = 1e-02;
@@ -23,7 +24,7 @@ void MPCSolver<T>::initialize()
     ddp_options.pconstr_thresh = .003;
     ddp_options.tconstr_thresh = .003;
     
-    mpc_config.plan_duration = 0.462;
+    mpc_config.plan_duration = 0.44;
     mpc_config.nsteps_between_mpc = 2;
     mpc_config.timeStep = 0.011;
     dt_mpc = mpc_config.timeStep;    
@@ -81,8 +82,8 @@ void MPCSolver<T>::update()
     mpc_mutex.lock(); // lock mpc to prevent updating while the previous hasn't finished
 
     // use less iterations when resolving DDP
-    ddp_options.max_AL_iter = 3;
-    ddp_options.max_DDP_iter = 1;
+    ddp_options.max_AL_iter = 2;
+    ddp_options.max_DDP_iter = 2;
     mpc_iter++;
 
     printf("************************************* \n");
@@ -135,8 +136,7 @@ void MPCSolver<T>::mpcdata_lcm_handler(const lcm::ReceiveBuffer *rbuf, const std
 
     std::memcpy(&hkd_data, msg, sizeof(hkd_data));
     mpc_time_prev = mpc_time;
-    mpc_time = hkd_data.mpctime;
-    mpc_mutex.unlock();
+    mpc_time = hkd_data.mpctime;    
     
     // get the current foot placements
     const auto& current_pf = hkd_data.foot_placements;
@@ -144,6 +144,7 @@ void MPCSolver<T>::mpcdata_lcm_handler(const lcm::ReceiveBuffer *rbuf, const std
     {
         pf[l] << current_pf[3*l], current_pf[3*l + 1], current_pf[3*l + 2];
     }
+    mpc_mutex.unlock();
     std::thread solve_mpc_thread(&MPCSolver::update, this);
     solve_mpc_thread.detach(); // detach the thread from the main thread. The thread would exit once it completes
 }
