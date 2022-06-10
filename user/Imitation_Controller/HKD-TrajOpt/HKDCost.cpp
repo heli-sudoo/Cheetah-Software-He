@@ -31,6 +31,9 @@ void HKDFootPlaceReg<T>::terminal_cost(TCost& tcost, const State& x, int kend)
     prel_r = Xr->at(kend).tail(12);
     d_prel = prel - prel_r;
     tcost.Phi = 20 * d_prel.transpose() * Qfoot * d_prel;
+    
+    // turning
+    // tcost.Phi = 5 * d_prel.transpose() * Qfoot * d_prel;
 }
 
 template <typename T>
@@ -42,6 +45,10 @@ void HKDFootPlaceReg<T>::terminal_cost_par(TCost& tcost, const State& x, int ken
     d_prel = prel - prel_r;
     tcost.Phix = 40 * dprel_dx.transpose() * Qfoot * d_prel;
     tcost.Phixx = 40 * dprel_dx.transpose() * Qfoot * dprel_dx;
+
+    // turning
+    // tcost.Phix = 10 * dprel_dx.transpose() * Qfoot * d_prel;
+    // tcost.Phixx = 10 * dprel_dx.transpose() * Qfoot * dprel_dx;
 }
 
 template <typename T>
