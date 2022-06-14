@@ -66,8 +66,6 @@ public:
     // MPC
     deque<VecM<float, 24>> mpc_control_bag;
     double mpc_time;
-    float time_between_mpc_node;
-    float time_between_mpc_update;
     int iter;
     int iter_loco;
     int iter_between_mpc_update;
