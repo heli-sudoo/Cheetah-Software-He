@@ -7,20 +7,11 @@
 #include "HSDDP_CPPTypes.h"
 #include "HSDDP_CompoundTypes.h"
 #include "ImitationUserParameters.h"
-#include "HKDModel.h"
-#include "HKDContactSchedule.h"
-#include "HKDProblem.h"
-#include "HKDReset.h"
-#include "MultiPhaseDDP.h"
-
 #include <mutex>
 #include <thread>
 #include <lcm/lcm-cpp.hpp>
 #include "hkd_command_lcmt.hpp"
 #include "hkd_data_lcmt.hpp"
-
-typedef double DDP_T;
-typedef ModelInfo<DDP_T,24,24,0> DDP_Model;
 
 using std::deque;
 class Imitation_Controller : public RobotController
@@ -61,8 +52,6 @@ protected:
     ImitationUserParameters userParameters;
 
 public:
-    ContactSchedule<DDP_Model> contactSchedule;
-
     // MPC
     deque<VecM<float, 24>> mpc_control_bag;
     double mpc_time;
@@ -76,9 +65,6 @@ public:
     VecM<float, 3> f_ff[4];
     bool firstRun;
    
-    bool in_first_fall;
-    float first_fall_duration;
-
     // Swing Control
     float statusTimes[4];
     float contactStatus[4];
