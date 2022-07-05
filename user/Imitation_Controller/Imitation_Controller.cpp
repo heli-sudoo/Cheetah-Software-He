@@ -142,8 +142,8 @@ void Imitation_Controller::runController()
     {
         yaw_flip_mins_times++;
     }
-    yaw = raw_yaw_cur + 2*PI*yaw_flip_plus_times - 2*PI*yaw_flip_mins_times;
-    
+    yaw = raw_yaw_cur + 2 * PI * yaw_flip_plus_times - 2 * PI * yaw_flip_mins_times;
+
     switch (desired_command_mode)
     {
     case CONTROL_MODE::locomotion:
@@ -161,7 +161,7 @@ void Imitation_Controller::runController()
 }
 
 void Imitation_Controller::locomotion_ctrl()
-{    
+{
     getContactStatus();
     getStatusDuration();
     update_mpc_if_needed();
@@ -190,11 +190,21 @@ void Imitation_Controller::locomotion_ctrl()
     }
 
     // do some first-time initilization
+    float h = 0.15;
     if (firstRun)
     {
         for (int i = 0; i < 4; i++)
         {
-            footSwingTrajectories[i].setHeight(0.02);
+            if (i < 2)
+            {
+                h = 0.1;
+            }
+            else
+            {
+                h = 0.1;
+            }
+
+            footSwingTrajectories[i].setHeight(h);
             footSwingTrajectories[i].setInitialPosition(pFoot[i]);
             footSwingTrajectories[i].setFinalPosition(pFoot[i]);
         }
@@ -203,8 +213,15 @@ void Imitation_Controller::locomotion_ctrl()
     }
     for (int i = 0; i < 4; i++)
     {
-        // footSwingTrajectories[i].setHeight(0.06);
-        footSwingTrajectories[i].setHeight(0.08);
+        if (i < 2)
+        {
+            h = 0.15;
+        }
+        else
+        {
+            h = 0.15;
+        }
+        footSwingTrajectories[i].setHeight(h);
         // footSwingTrajectories[i].setFinalPosition(pf[i]);
 
         // if the leg is in swing
@@ -224,10 +241,10 @@ void Imitation_Controller::locomotion_ctrl()
                 if (swingTimesRemain[i] <= 0)
                 {
                     swingTimesRemain[i] = 0;
-                }                     
+                }
             }
             // if buffer not full
-            if (pf_filter_buffer[i].size()<filter_window)
+            if (pf_filter_buffer[i].size() < filter_window)
             {
                 pf_filter_buffer[i].push_back(pf[i]);
             }
@@ -243,9 +260,9 @@ void Imitation_Controller::locomotion_ctrl()
             {
                 pf_filtered[i] += pf_filter_buffer[i][j];
             }
-            pf_filtered[i] = pf_filtered[i]/pf_filter_buffer[i].size();
+            pf_filtered[i] = pf_filtered[i] / pf_filter_buffer[i].size();
             footSwingTrajectories[i].setFinalPosition(pf_filtered[i]);
-                        
+
             swingState[i] = (swingTimes[i] - swingTimesRemain[i]) / swingTimes[i];               // where are we in swing
             footSwingTrajectories[i].computeSwingTrajectoryBezier(swingState[i], swingTimes[i]); // compute swing foot trajectory
             Vec3<float> pDesFootWorld = footSwingTrajectories[i].getPosition();
@@ -262,9 +279,7 @@ void Imitation_Controller::locomotion_ctrl()
             stanceState[i] = 0;
 
             // don't change too fast in joing space
-            _legController->commands[i].kdJoint = Vec3<float>(.2,.1,.1).asDiagonal();
-
-            // avoid_leg_collision_CT(i);
+            // _legController->commands[i].kdJoint = Vec3<float>(.2, .1, .1).asDiagonal();
         }
         // else in stance
         else
@@ -273,18 +288,18 @@ void Imitation_Controller::locomotion_ctrl()
             stanceTimes[i] = statusTimes[i];
             pf_filter_buffer[i].clear();
 
-            Vec3<float> pDesFootWorld = footSwingTrajectories[i].getPosition();
-            Vec3<float> vDesFootWorld = footSwingTrajectories[i].getVelocity();
-            Vec3<float> pDesLeg = seResult.rBody * (pDesFootWorld - seResult.position) - _quadruped->getHipLocation(i);
-            Vec3<float> vDesLeg = seResult.rBody * (vDesFootWorld - seResult.vWorld);
+            // Vec3<float> pDesFootWorld = footSwingTrajectories[i].getPosition();
+            // Vec3<float> vDesFootWorld = footSwingTrajectories[i].getVelocity();
+            // Vec3<float> pDesLeg = seResult.rBody * (pDesFootWorld - seResult.position) - _quadruped->getHipLocation(i);
+            // Vec3<float> vDesLeg = seResult.rBody * (vDesFootWorld - seResult.vWorld);
 
-            _legController->commands[i].pDes = pDesLeg;
-            _legController->commands[i].vDes = vDesLeg;
-            _legController->commands[i].kpCartesian = Kp_stance;
-            _legController->commands[i].kdCartesian = Kd_stance;
+            // _legController->commands[i].pDes = pDesLeg;
+            // _legController->commands[i].vDes = vDesLeg;
+            // _legController->commands[i].kpCartesian = Kp_stance;
+            // _legController->commands[i].kdCartesian = Kd_stance;
 
             _legController->commands[i].forceFeedForward = f_ff[i];
-            _legController->commands[i].kdJoint = Mat3<float>::Identity() * .2;
+            // _legController->commands[i].kdJoint = Mat3<float>::Identity() * .2;
             // seed state estimate
             if (firstStance[i])
             {
@@ -305,14 +320,14 @@ void Imitation_Controller::locomotion_ctrl()
     _stateEstimator->setContactPhase(stanceState);
     iter_loco++;
     mpc_time = iter_loco * _controlParameters->controller_dt; // where we are since MPC starts
-    iter_between_mpc_update++;    
+    iter_between_mpc_update++;
 }
 
 void Imitation_Controller::update_mpc_if_needed()
 {
     /* If haven't reached to the replanning time, skip */
     if (iter_between_mpc_update < nsteps_between_mpc_update)
-    {        
+    {
         return;
     }
     iter_between_mpc_update = 0;
@@ -345,7 +360,7 @@ void Imitation_Controller::update_mpc_if_needed()
     printf(RESET);
 }
 
-/*  
+/*
     @brief  Get the first value from the mpc solution bag
             This value is used for several control points the timestep between which is controller_dt
             Once dt_ddp is reached, the solution bag is popped in the front
@@ -362,8 +377,7 @@ void Imitation_Controller::get_a_val_from_solution_bag()
                 mpc_control = mpc_control_bag[i];
                 break;
             }
-            
-        }              
+        }
     }
     mpc_cmd_mutex.unlock();
 }
@@ -440,12 +454,11 @@ void Imitation_Controller::getContactStatus()
             {
                 for (int l = 0; l < 4; l++)
                 {
-                    contactStatus[l] = mpc_cmds.contacts[i][l];                    
+                    contactStatus[l] = mpc_cmds.contacts[i][l];
                 }
                 break;
             }
-            
-        }       
+        }
     }
     mpc_cmd_mutex.unlock();
 }
@@ -472,7 +485,7 @@ void Imitation_Controller::avoid_leg_collision_CT(int i)
     Vec3<float> dfoot, dknee, pknee1, pknee2;
     Mat3<float> Kp_collision;
     Vec3<float> grad;
-    Kp_collision = Vec3<float>(.5,.5,.5).asDiagonal();
+    Kp_collision = Vec3<float>(.5, .5, .5).asDiagonal();
     grad.setZero();
     float r = .2;
 
@@ -482,16 +495,16 @@ void Imitation_Controller::avoid_leg_collision_CT(int i)
     {
     case 0:
         dfoot = pFoot[0] - pFoot[1];
-        compute_knee_position(pknee2, _legController->datas[1].q, 1);        
+        compute_knee_position(pknee2, _legController->datas[1].q, 1);
         break;
     case 1:
         dfoot = pFoot[1] - pFoot[0];
         compute_knee_position(pknee2, _legController->datas[0].q, 0);
-        break;    
+        break;
     case 2:
         dfoot = pFoot[2] - pFoot[3];
         compute_knee_position(pknee2, _legController->datas[3].q, 3);
-        break;    
+        break;
     case 3:
         dfoot = pFoot[3] - pFoot[2];
         compute_knee_position(pknee2, _legController->datas[2].q, 2);
@@ -505,13 +518,13 @@ void Imitation_Controller::avoid_leg_collision_CT(int i)
     if (dknee.norm() < r)
     {
         grad -= pow(dknee.norm(), -1) * dknee;
-    }    
-    
+    }
+
     const auto &seResult = _stateEstimator->getResult();
     _legController->commands[i].forceFeedForward = -Kp_collision * seResult.rBody * grad;
 }
 
-void Imitation_Controller::compute_knee_position(Vec3<float>&p, Vec3<float>&q, int leg)
+void Imitation_Controller::compute_knee_position(Vec3<float> &p, Vec3<float> &q, int leg)
 {
     float l1 = _quadruped->_abadLinkLength;
     float l2 = _quadruped->_hipLinkLength;
@@ -524,6 +537,6 @@ void Imitation_Controller::compute_knee_position(Vec3<float>&p, Vec3<float>&q, i
     float c2 = std::cos(q(1));
 
     p[0] = l2 * s2;
-    p[1] = l1 * sideSign * c1  + l2 * c2 * s1;
-    p[2] = l1 * sideSign * s1  - l2 * c1 * c2;
+    p[1] = l1 * sideSign * c1 + l2 * c2 * s1;
+    p[2] = l1 * sideSign * s1 - l2 * c1 * c2;
 }

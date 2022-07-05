@@ -1,6 +1,6 @@
 ground-plane:
     type: "infinite-plane"
-    mu: 0.5
+    mu: 0.6
     restitution: 0.0
     #height: -0.5
     height: 0.0

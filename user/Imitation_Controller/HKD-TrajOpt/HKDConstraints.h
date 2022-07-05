@@ -16,7 +16,7 @@ private:
     using typename PathConstraintBase<T,24,24,0>::Contrl;
     using typename PathConstraintBase<T,24,24,0>::Output;
 
-    T mu_fric = 0.8;
+    T mu_fric = 0.5;
     DMat<T> A;
     DVec<T> b;
 

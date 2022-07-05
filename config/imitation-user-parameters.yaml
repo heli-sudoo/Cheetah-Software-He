@@ -7,7 +7,7 @@ max_AL_iters:   3
 max_DDP_iters:   1
 Kp_jointPD:       [100, 50, 50]
 Kd_jointPD:       [2, 2, 2]
-angles_jointPD:   [0, -0.85, 1.8]
+angles_jointPD:   [0, -0.7874, 1.7537]
 draw_plan:      0
 
 Swing_Kp_cartesian : [700, 700, 100]

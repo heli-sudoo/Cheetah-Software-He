@@ -24,9 +24,9 @@ void MPCSolver<T>::initialize()
     ddp_options.pconstr_thresh = .003;
     ddp_options.tconstr_thresh = .003;
     
-    mpc_config.plan_duration = 0.44;
+    mpc_config.plan_duration = 0.5;
     mpc_config.nsteps_between_mpc = 2;
-    mpc_config.timeStep = 0.011;
+    mpc_config.timeStep = 0.01;
     dt_mpc = mpc_config.timeStep;    
     opt_ref.initialize_referenceData(mpc_config.plan_duration);
 
@@ -46,8 +46,8 @@ void MPCSolver<T>::initialize()
 
     // set the initial condition
     xinit.setZero(24);
-    body << 0,0,0,0,0,0.28,0,0,0,0,0,0;
-    qJ << 0,-0.7696,1.6114,0,-0.7696,1.6114,0,-0.7696,1.6114,0,-0.7696,1.6114;
+    body << 0,0,0,0,0,0.25,0,0,0,0,0,0;
+    qJ << 0,-0.7874,1.7537,0,-0.7874,1.7537,0,-0.7874,1.7537,0,-0.7874,1.7537;
     pos = body.segment(3, 3);
     eul = body.head(3);
 
