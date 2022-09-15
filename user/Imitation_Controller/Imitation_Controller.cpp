@@ -1,11 +1,11 @@
 #include "Imitation_Controller.hpp"
-#include "HSDDP_Utils.h"
 #include "cTypes.h"
 #include "utilities.h"
 #include <unistd.h>
 #include <chrono>
 
 #define DRAW_PLAN
+#define PI 3.1415926
 
 enum CONTROL_MODE
 {
@@ -76,7 +76,7 @@ void Imitation_Controller::initializeController()
     mpc_time = 0;
     iter_loco = 0;
     iter_between_mpc_update = 0;
-    nsteps_between_mpc_update = 11;
+    nsteps_between_mpc_update = 5;
     yaw_flip_plus_times = 0;
     yaw_flip_mins_times = 0;
     raw_yaw_cur = _stateEstimate->rpy[2];
@@ -103,7 +103,7 @@ void Imitation_Controller::handleMPCcommand(const lcm::ReceiveBuffer *rbuf, cons
     mpc_control_bag.clear();
     for (int i = 0; i < mpc_cmds.N_mpcsteps; i++)
     {
-        VecM<float, 24> ubar;
+        Vec24<float> ubar;
         for (int j = 0; j < 24; j++)
         {
             ubar[j] = mpc_cmds.hkd_controls[i][j];
@@ -197,11 +197,11 @@ void Imitation_Controller::locomotion_ctrl()
         {
             if (i < 2)
             {
-                h = 0.1;
+                h = 0.15;
             }
             else
             {
-                h = 0.1;
+                h = 0.15;
             }
 
             footSwingTrajectories[i].setHeight(h);
@@ -213,14 +213,14 @@ void Imitation_Controller::locomotion_ctrl()
     }
     for (int i = 0; i < 4; i++)
     {
-        if (i < 2)
-        {
-            h = 0.15;
-        }
-        else
-        {
-            h = 0.15;
-        }
+        // if (i < 2)
+        // {
+        //     h = 0.15;
+        // }
+        // else
+        // {
+        //     h = 0.15;
+        // }
         footSwingTrajectories[i].setHeight(h);
         // footSwingTrajectories[i].setFinalPosition(pf[i]);
 
@@ -279,7 +279,7 @@ void Imitation_Controller::locomotion_ctrl()
             stanceState[i] = 0;
 
             // don't change too fast in joing space
-            // _legController->commands[i].kdJoint = Vec3<float>(.2, .1, .1).asDiagonal();
+            _legController->commands[i].kdJoint = Vec3<float>(.1, .1, .1).asDiagonal();
         }
         // else in stance
         else
@@ -288,18 +288,18 @@ void Imitation_Controller::locomotion_ctrl()
             stanceTimes[i] = statusTimes[i];
             pf_filter_buffer[i].clear();
 
-            // Vec3<float> pDesFootWorld = footSwingTrajectories[i].getPosition();
-            // Vec3<float> vDesFootWorld = footSwingTrajectories[i].getVelocity();
-            // Vec3<float> pDesLeg = seResult.rBody * (pDesFootWorld - seResult.position) - _quadruped->getHipLocation(i);
-            // Vec3<float> vDesLeg = seResult.rBody * (vDesFootWorld - seResult.vWorld);
+            Vec3<float> pDesFootWorld = footSwingTrajectories[i].getPosition();
+            Vec3<float> vDesFootWorld = footSwingTrajectories[i].getVelocity();
+            Vec3<float> pDesLeg = seResult.rBody * (pDesFootWorld - seResult.position) - _quadruped->getHipLocation(i);
+            Vec3<float> vDesLeg = seResult.rBody * (vDesFootWorld - seResult.vWorld);
 
-            // _legController->commands[i].pDes = pDesLeg;
-            // _legController->commands[i].vDes = vDesLeg;
-            // _legController->commands[i].kpCartesian = Kp_stance;
-            // _legController->commands[i].kdCartesian = Kd_stance;
+            _legController->commands[i].pDes = pDesLeg;
+            _legController->commands[i].vDes = vDesLeg;
+            _legController->commands[i].kpCartesian = Kp_stance;
+            _legController->commands[i].kdCartesian = Kd_stance;
 
             _legController->commands[i].forceFeedForward = f_ff[i];
-            // _legController->commands[i].kdJoint = Mat3<float>::Identity() * .2;
+            _legController->commands[i].kdJoint = Mat3<float>::Identity() * .1;
             // seed state estimate
             if (firstStance[i])
             {

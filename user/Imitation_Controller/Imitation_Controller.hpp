@@ -4,8 +4,6 @@
 #include <RobotController.h>
 #include "Controllers/FootSwingTrajectory.h"
 #include <deque>
-#include "HSDDP_CPPTypes.h"
-#include "HSDDP_CompoundTypes.h"
 #include "ImitationUserParameters.h"
 #include <mutex>
 #include <thread>
@@ -53,7 +51,7 @@ protected:
 
 public:
     // MPC
-    deque<VecM<float, 24>> mpc_control_bag;
+    deque<Vec24<float>> mpc_control_bag;
     double mpc_time;
     int iter;
     int iter_loco;
@@ -62,7 +60,7 @@ public:
     int nsteps_between_mpc_update;
     int nsteps_between_mpc_node;
 
-    VecM<float, 3> f_ff[4];
+    Vec3<float> f_ff[4];
     bool firstRun;
    
     // Swing Control
@@ -76,22 +74,22 @@ public:
     float stanceTimesRemain[4];
     bool firstSwing[4];
     bool firstStance[4];
-    VecM<float, 3> pFoot_des[4];    //desired swing foot positions
-    VecM<float, 3> vFoot_des[4];    //desired swing foot velocities
-    VecM<float, 3> aFoot_des[4];    //desired swing foot accelerations
-    VecM<float, 3> pf[4];           // foothold locations
-    VecM<float, 3> pf_filtered[4];           // foothold locations
-    VecM<float, 3> pFoot[4];        //actual swing foot positions
-    VecM<float, 3> vFoot[4];        //actual swing foot velocities
+    Vec3<float> pFoot_des[4];    //desired swing foot positions
+    Vec3<float> vFoot_des[4];    //desired swing foot velocities
+    Vec3<float> aFoot_des[4];    //desired swing foot accelerations
+    Vec3<float> pf[4];           // foothold locations
+    Vec3<float> pf_filtered[4];           // foothold locations
+    Vec3<float> pFoot[4];        //actual swing foot positions
+    Vec3<float> vFoot[4];        //actual swing foot velocities
     FootSwingTrajectory<float> footSwingTrajectories[4];
     Mat3<float> Kp_swing;
     Mat3<float> Kd_swing;
     Mat3<float> Kp_stance;
     Mat3<float> Kd_stance;
-    VecM<float, 3> qJ_des[4];
+    Vec3<float> qJ_des[4];
 
     // foot location filter
-    deque<VecM<float, 3>> pf_filter_buffer[4]; // buffer storing re-optimized foot locations
+    deque<Vec3<float>> pf_filter_buffer[4]; // buffer storing re-optimized foot locations
     int filter_window;
 
     // LCM
@@ -111,7 +109,7 @@ public:
     float yaw;
 
 private:
-    VecM<float, 24> mpc_control;
+    Vec24<float> mpc_control;
     Vec3<float> init_joint_pos[4];
     bool in_standup;
     int iter_standup;

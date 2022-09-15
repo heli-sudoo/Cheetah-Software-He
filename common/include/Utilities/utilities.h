@@ -300,6 +300,19 @@ Vec3<T> stringToVec3(const std::string& str) {
   return v;
 }
 
+// Check if two floating-point number are almost equal
+template<typename T>
+bool almostEqual_number(T n1, T n2)
+{
+    T tol = 1e-8;
+    T err = std::abs(n1 - n2);
+    if (err <= tol)
+    {
+        return true;
+    }
+    return false;
+}
+
 std::string getLcmUrl(s64 ttl);
 
 #endif  // PROJECT_UTILITIES_H

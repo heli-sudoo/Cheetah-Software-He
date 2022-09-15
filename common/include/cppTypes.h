@@ -48,6 +48,10 @@ using Vec14 = Eigen::Matrix<T, 14, 1>;
 template <typename T>
 using Vec18 = Eigen::Matrix<T, 18, 1>;
 
+// 24x1 vector
+template <typename T>
+using Vec24 = Eigen::Matrix<T, 24, 1>;
+
 // 28x1 vector
 template <typename T>
 using Vec28 = Eigen::Matrix<T, 28, 1>;
