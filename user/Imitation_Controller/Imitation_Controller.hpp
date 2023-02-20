@@ -10,6 +10,7 @@
 #include <lcm/lcm-cpp.hpp>
 #include "hkd_command_lcmt.hpp"
 #include "hkd_data_lcmt.hpp"
+#include "reset_sim_t.hpp"
 
 using std::deque;
 class Imitation_Controller : public RobotController
@@ -41,6 +42,7 @@ public:
     void avoid_leg_collision_CT(int leg);
     void compute_knee_position(Vec3<float>&p, Vec3<float>&q, int leg);
     void reset_mpc();
+    void address_yaw_ambiguity();
 
 private: //help functions
     void draw_swing();
@@ -108,6 +110,14 @@ public:
     float raw_yaw_pre;
     float raw_yaw_cur;
     float yaw;
+
+    // Defined for reset
+    lcm::LCM reset_sim_lcm;
+    reset_sim_t reset_sim;
+    bool reset_flag;
+    float reset_settling_time;
+    float max_reset_settling_time;
+    float max_loco_time;
 
 private:
     Vec24<float> mpc_control;

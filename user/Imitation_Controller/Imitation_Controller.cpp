@@ -21,7 +21,9 @@ enum RC_MODE
     rc_locomotion = 3 // top right (estop) switch in bottom position
 };
 
-Imitation_Controller::Imitation_Controller() : mpc_cmds_lcm(getLcmUrl(255)), mpc_data_lcm(getLcmUrl(255))
+Imitation_Controller::Imitation_Controller() : mpc_cmds_lcm(getLcmUrl(255)),
+                                               mpc_data_lcm(getLcmUrl(255)),
+                                               reset_sim_lcm(getLcmUrl(255))
 {
     if (!mpc_cmds_lcm.good())
     {
@@ -36,10 +38,30 @@ Imitation_Controller::Imitation_Controller() : mpc_cmds_lcm(getLcmUrl(255)), mpc
         printf("Failed to initialize lcm for mpc data \n");
         printf(RESET);
     }
+    mpc_cmds_lcm.subscribe("mpc_command", &Imitation_Controller::handleMPCcommand, this);
+    mpcLCMthread = std::thread(&Imitation_Controller::handleMPCLCMthread, this);
 
-    in_standup = false;    
+    in_standup = false;
     desired_command_mode = CONTROL_MODE::estop;
-    filter_window = 20;
+    filter_window = 5;
+    
+
+    reset_flag = false;       
+    reset_settling_time = 0;
+}
+void Imitation_Controller::initializeController()
+{
+    iter = 0;
+    mpc_time = 0;
+    iter_loco = 0;
+    iter_between_mpc_update = 0;
+    nsteps_between_mpc_update = 5;
+    yaw_flip_plus_times = 0;
+    yaw_flip_mins_times = 0;
+    raw_yaw_cur = _stateEstimate->rpy[2];    
+    max_loco_time = userParameters.max_loco_time; // maximum locomotion time in seconds
+    max_reset_settling_time = userParameters.max_settling_time; // maximum reset settling time
+
     /* Variable initilization */
     for (int foot = 0; foot < 4; foot++)
     {
@@ -66,20 +88,7 @@ Imitation_Controller::Imitation_Controller() : mpc_cmds_lcm(getLcmUrl(255)), mpc
         pf[foot].setZero();
 
         pf_filter_buffer[foot].clear();
-    }
-}
-void Imitation_Controller::initializeController()
-{
-    mpc_cmds_lcm.subscribe("mpc_command", &Imitation_Controller::handleMPCcommand, this);
-    mpcLCMthread = std::thread(&Imitation_Controller::handleMPCLCMthread, this);
-    iter = 0;
-    mpc_time = 0;
-    iter_loco = 0;
-    iter_between_mpc_update = 0;
-    nsteps_between_mpc_update = 5;
-    yaw_flip_plus_times = 0;
-    yaw_flip_mins_times = 0;
-    raw_yaw_cur = _stateEstimate->rpy[2];
+    }    
 }
 
 void Imitation_Controller::handleMPCLCMthread()
@@ -122,28 +131,39 @@ void Imitation_Controller::runController()
 {
     iter++;
 
-    if (_controlParameters->use_rc > 0)
-    {
-        desired_command_mode = _desiredStateCommand->rcCommand->mode;
-    }
-    else
-    {
-        desired_command_mode = static_cast<int>(_controlParameters->control_mode);
-    }
+    address_yaw_ambiguity();
 
-    raw_yaw_pre = raw_yaw_cur;
-    raw_yaw_cur = _stateEstimate->rpy[2];
+    desired_command_mode = static_cast<int>(_controlParameters->control_mode);
 
-    if (raw_yaw_cur - raw_yaw_pre < -2) // pi -> -pi
+    // If reset_flag is set to true 
+    if (reset_flag && (desired_command_mode == CONTROL_MODE::locomotion))
     {
-        yaw_flip_plus_times++;
+        if (reset_settling_time == 0)
+        {            
+            printf("resettling controller ... \n");           
+            initializeController();
+            reset_mpc();                    
+        }
+        // Reset simulation
+        if (reset_settling_time < max_reset_settling_time/2)
+        {
+            reset_sim.reset = true;            
+            reset_sim_lcm.publish("reset_sim", &reset_sim);       
+        }
+        
+        // Allow the simulated robot some time to settle
+        if (reset_settling_time < max_reset_settling_time) 
+        {                        
+            desired_command_mode = CONTROL_MODE::standup;
+            reset_settling_time += _controlParameters->controller_dt;
+        }
+        // If reached settling time, run locomotion controller
+        else {
+            desired_command_mode = CONTROL_MODE::locomotion;            
+            reset_flag = false;
+        }        
     }
-    if (raw_yaw_cur - raw_yaw_pre > 2) // -pi -> pi
-    {
-        yaw_flip_mins_times++;
-    }
-    yaw = raw_yaw_cur + 2 * PI * yaw_flip_plus_times - 2 * PI * yaw_flip_mins_times;
-
+    
     switch (desired_command_mode)
     {
     case CONTROL_MODE::locomotion:
@@ -162,6 +182,13 @@ void Imitation_Controller::runController()
 
 void Imitation_Controller::locomotion_ctrl()
 {
+    if (mpc_time >= max_loco_time)
+    {
+        reset_flag = true;
+        reset_settling_time = 0;
+        return;
+    }
+
     getContactStatus();
     getStatusDuration();
     update_mpc_if_needed();
@@ -194,7 +221,7 @@ void Imitation_Controller::locomotion_ctrl()
     if (firstRun)
     {
         for (int i = 0; i < 4; i++)
-        {           
+        {
             footSwingTrajectories[i].setHeight(h);
             footSwingTrajectories[i].setInitialPosition(pFoot[i]);
             footSwingTrajectories[i].setFinalPosition(pFoot[i]);
@@ -202,6 +229,7 @@ void Imitation_Controller::locomotion_ctrl()
 
         firstRun = false;
     }
+
     for (int i = 0; i < 4; i++)
     {
         footSwingTrajectories[i].setHeight(h);
@@ -303,7 +331,24 @@ void Imitation_Controller::locomotion_ctrl()
     _stateEstimator->setContactPhase(stanceState);
     iter_loco++;
     mpc_time = iter_loco * _controlParameters->controller_dt; // where we are since MPC starts
-    iter_between_mpc_update++;
+    iter_between_mpc_update++;    
+    
+}
+
+void Imitation_Controller::address_yaw_ambiguity()
+{
+    raw_yaw_pre = raw_yaw_cur;
+    raw_yaw_cur = _stateEstimate->rpy[2];
+
+    if (raw_yaw_cur - raw_yaw_pre < -2) // pi -> -pi
+    {
+        yaw_flip_plus_times++;
+    }
+    if (raw_yaw_cur - raw_yaw_pre > 2) // -pi -> pi
+    {
+        yaw_flip_mins_times++;
+    }
+    yaw = raw_yaw_cur + 2 * PI * yaw_flip_plus_times - 2 * PI * yaw_flip_mins_times;
 }
 
 void Imitation_Controller::update_mpc_if_needed()
@@ -347,7 +392,7 @@ void Imitation_Controller::reset_mpc()
 {
     mpc_data.reset_mpc = true;
     mpc_data_lcm.publish("mpc_data", &mpc_data);
-    mpc_data.reset_mpc = false;
+    mpc_data.reset_mpc = false;    
 }
 
 /*
