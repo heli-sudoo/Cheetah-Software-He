@@ -89,7 +89,8 @@ SimControlPanel::SimControlPanel(QWidget *parent)
       _indexmapLCM(getLcmUrl(255)),
       _ctrlVisionLCM(getLcmUrl(255)),
       _miniCheetahDebugLCM(getLcmUrl(255)),
-      _resetSimLCM(getLcmUrl(255))
+      _resetSimLCM(getLcmUrl(255)),
+      _extForceLCM(getLcmUrl(255))
 {
 
   ui->setupUi(this);    // QT setup
@@ -152,6 +153,9 @@ SimControlPanel::SimControlPanel(QWidget *parent)
 
   _resetSimLCM.subscribe("reset_sim", &SimControlPanel::handleResetSimLCM, this);
   _resetSimLCMThread = std::thread(&SimControlPanel::resetSimLCMThread, this);
+
+  _extForceLCM.subscribe("ext_force", &SimControlPanel::handleExtForceLCM, this);
+  _extForceLCMThread = std::thread(&SimControlPanel::extForceLCMThread, this);
 
   // subscribe mc debug
   _miniCheetahDebugLCM.subscribe("leg_control_data", &SimControlPanel::handleSpiDebug, this);
@@ -234,11 +238,11 @@ void SimControlPanel::handleResetSimLCM(const lcm::ReceiveBuffer *rbuf, const st
   if (msg->reset)
   {
     FBModelState<double> homeState;
-    homeState.bodyPosition = Vec3<double>(0, 0, 0.2565);
-    homeState.bodyOrientation = rpyToQuat(Vec3<double>(0, -0.12, 0));
+    homeState.bodyPosition = Vec3<double>(0, 0, 0.25);
+    homeState.bodyOrientation = rpyToQuat(Vec3<double>(0, 0, 0));
     homeState.bodyVelocity = SVec<double>::Zero();
     homeState.q = DVec<double>(12);
-    homeState.q << 0, -0.65, 1.569, 0, -0.65, 1.569, 0, -0.6, 1.8, 0, -0.6, 1.8;
+    homeState.q << -0.1, -0.7874, 1.7537, 0.1, -0.7874, 1.7537, -0.1, -0.7874, 1.7537, 0.1, -0.7874, 1.7537;
     homeState.qd = DVec<double>(12);
     homeState.qd.setZero();
     homeState.reset = true;
@@ -246,6 +250,19 @@ void SimControlPanel::handleResetSimLCM(const lcm::ReceiveBuffer *rbuf, const st
     _simulation->setRobotState(homeState);
   }
 }
+
+void SimControlPanel::handleExtForceLCM(const lcm::ReceiveBuffer *rbuf, const std::string &chan,
+                                        const extForce_t *msg)
+{
+  SVec<double> spatial_force;
+  vectorAligned<SVec<double>> sforces;
+  spatial_force.setZero();
+  spatial_force.head(3) << msg->force[0], msg->force[1], msg->force[2];
+  spatial_force.tail(3) << msg->torque[0], msg->torque[1], msg->torque[2];
+  
+  sforces.push_back(spatial_force);
+  _simulation->_simulator->setAllExternalForces(sforces);
+}                                        
 
 void SimControlPanel::handleIndexmapLCM(const lcm::ReceiveBuffer *rbuf,
                                         const std::string &chan,

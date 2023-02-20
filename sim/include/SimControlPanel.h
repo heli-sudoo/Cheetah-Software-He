@@ -26,6 +26,7 @@
 #include "obstacle_visual_t.hpp"
 #include "velocity_visual_t.hpp"
 #include "reset_sim_t.hpp"
+#include "extForce_t.hpp"
 
 namespace Ui {
 class SimControlPanel;
@@ -160,12 +161,17 @@ public slots:
       const reset_sim_t* msg);
   void resetSimLCMThread() { while (true) { _resetSimLCM.handle(); } }
 
+  void handleExtForceLCM(const lcm::ReceiveBuffer* rbuf, const std::string& chan, 
+      const extForce_t* msg);
+  void extForceLCMThread() { while (true) { _extForceLCM.handle(); } }
+
   lcm::LCM _heightmapLCM;
   lcm::LCM _pointsLCM;
   lcm::LCM _indexmapLCM;
   lcm::LCM _ctrlVisionLCM;
   lcm::LCM _miniCheetahDebugLCM;
   lcm::LCM _resetSimLCM;
+  lcm::LCM _extForceLCM;
 
   std::thread _pointsLCMThread;
   std::thread _heightmapLCMThread;
@@ -173,6 +179,7 @@ public slots:
   std::thread _ctrlVisionLCMThread;
   std::thread _miniCheetahDebugLCMThread;
   std::thread _resetSimLCMThread;
+  std::thread _extForceLCMThread;
 
   MiniCheetahDebug _mcDebugWindow;
 
