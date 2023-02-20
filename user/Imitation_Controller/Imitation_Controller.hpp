@@ -40,6 +40,7 @@ public:
     void handleMPCLCMthread();
     void avoid_leg_collision_CT(int leg);
     void compute_knee_position(Vec3<float>&p, Vec3<float>&q, int leg);
+    void reset_mpc();
 
 private: //help functions
     void draw_swing();
@@ -113,7 +114,7 @@ private:
     Vec3<float> init_joint_pos[4];
     bool in_standup;
     int iter_standup;
-    int desired_command_mode;
+    int desired_command_mode;    
 };
 
 #endif

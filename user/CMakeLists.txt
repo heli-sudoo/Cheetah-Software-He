@@ -1,6 +1,6 @@
 #add_subdirectory(JPos_Controller)
 #add_subdirectory(Example_Leg_InvDyn)
-add_subdirectory(MIT_Controller)
+#add_subdirectory(MIT_Controller)
 #add_subdirectory(MiniCheetahSpi_Controller)
 add_subdirectory(Imitation_Controller)
 #add_subdirectory(ND_Controller)

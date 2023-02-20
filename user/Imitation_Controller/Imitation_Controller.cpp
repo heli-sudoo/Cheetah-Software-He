@@ -37,7 +37,7 @@ Imitation_Controller::Imitation_Controller() : mpc_cmds_lcm(getLcmUrl(255)), mpc
         printf(RESET);
     }
 
-    in_standup = false;
+    in_standup = false;    
     desired_command_mode = CONTROL_MODE::estop;
     filter_window = 20;
     /* Variable initilization */
@@ -194,16 +194,7 @@ void Imitation_Controller::locomotion_ctrl()
     if (firstRun)
     {
         for (int i = 0; i < 4; i++)
-        {
-            if (i < 2)
-            {
-                h = 0.15;
-            }
-            else
-            {
-                h = 0.15;
-            }
-
+        {           
             footSwingTrajectories[i].setHeight(h);
             footSwingTrajectories[i].setInitialPosition(pFoot[i]);
             footSwingTrajectories[i].setFinalPosition(pFoot[i]);
@@ -213,14 +204,6 @@ void Imitation_Controller::locomotion_ctrl()
     }
     for (int i = 0; i < 4; i++)
     {
-        // if (i < 2)
-        // {
-        //     h = 0.15;
-        // }
-        // else
-        // {
-        //     h = 0.15;
-        // }
         footSwingTrajectories[i].setHeight(h);
         // footSwingTrajectories[i].setFinalPosition(pf[i]);
 
@@ -358,6 +341,13 @@ void Imitation_Controller::update_mpc_if_needed()
     printf(YEL);
     printf("sending a request for updating mpc\n");
     printf(RESET);
+}
+
+void Imitation_Controller::reset_mpc()
+{
+    mpc_data.reset_mpc = true;
+    mpc_data_lcm.publish("mpc_data", &mpc_data);
+    mpc_data.reset_mpc = false;
 }
 
 /*
