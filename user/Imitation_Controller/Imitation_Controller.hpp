@@ -40,11 +40,10 @@ public:
     void handleMPCcommand(const lcm::ReceiveBuffer *rbuf, const std::string &chan,
                           const hkd_command_lcmt *msg);
     void handleMPCLCMthread();
-    void avoid_leg_collision_CT(int leg);
-    void compute_knee_position(Vec3<float>&p, Vec3<float>&q, int leg);
     void reset_mpc();
     void address_yaw_ambiguity();
     void apply_external_force();
+    bool check_safty();
 
 private: //help functions
     void draw_swing();
@@ -126,6 +125,7 @@ public:
     float ext_force_end_time;    
     Vec3<float> ext_force_linear;
     Vec3<float> ext_force_angular;
+    bool is_safe;
 
 private:
     Vec24<float> mpc_control;

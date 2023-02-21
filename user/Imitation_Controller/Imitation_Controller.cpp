@@ -45,11 +45,13 @@ Imitation_Controller::Imitation_Controller() : mpc_cmds_lcm(getLcmUrl(255)),
     in_standup = false;
     desired_command_mode = CONTROL_MODE::estop;
     filter_window = 5;
-    
 
-    reset_flag = false;       
+    reset_flag = false;
     reset_settling_time = 0;
 }
+/*
+    @brief: Do some initialiation
+*/
 void Imitation_Controller::initializeController()
 {
     iter = 0;
@@ -59,11 +61,12 @@ void Imitation_Controller::initializeController()
     nsteps_between_mpc_update = 10;
     yaw_flip_plus_times = 0;
     yaw_flip_mins_times = 0;
-    raw_yaw_cur = _stateEstimate->rpy[2];    
-    max_loco_time = userParameters.max_loco_time; // maximum locomotion time in seconds
+    raw_yaw_cur = _stateEstimate->rpy[2];
+    max_loco_time = userParameters.max_loco_time;               // maximum locomotion time in seconds
     max_reset_settling_time = userParameters.max_settling_time; // maximum reset settling time
     ext_force_start_time = userParameters.ext_force_start_time;
     ext_force_end_time = userParameters.ext_force_end_time;
+    is_safe = true;
 
     /* Variable initilization */
     for (int foot = 0; foot < 4; foot++)
@@ -91,7 +94,7 @@ void Imitation_Controller::initializeController()
         pf[foot].setZero();
 
         pf_filter_buffer[foot].clear();
-    }    
+    }
 }
 
 void Imitation_Controller::handleMPCLCMthread()
@@ -136,37 +139,46 @@ void Imitation_Controller::runController()
 
     address_yaw_ambiguity();
 
+    is_safe = is_safe && check_safty();
+
+    if (!is_safe)
+    {
+        reset_flag = true;
+        reset_settling_time = 0;
+    }
+
     desired_command_mode = static_cast<int>(_controlParameters->control_mode);
 
-    // If reset_flag is set to true 
+    // If reset_flag is set to true
     if (reset_flag && (desired_command_mode == CONTROL_MODE::locomotion))
     {
         if (reset_settling_time == 0)
-        {            
-            printf("resettling controller ... \n");           
+        {
+            printf("resettling controller ... \n");
             initializeController();
-            reset_mpc();                    
+            reset_mpc();
         }
         // Reset simulation
-        if (reset_settling_time < max_reset_settling_time/2)
+        if (reset_settling_time < max_reset_settling_time / 2)
         {
-            reset_sim.reset = true;            
-            reset_sim_lcm.publish("reset_sim", &reset_sim);       
+            reset_sim.reset = true;
+            reset_sim_lcm.publish("reset_sim", &reset_sim);
         }
-        
+
         // Allow the simulated robot some time to settle
-        if (reset_settling_time < max_reset_settling_time) 
-        {                        
+        if (reset_settling_time < max_reset_settling_time)
+        {
             desired_command_mode = CONTROL_MODE::standup;
             reset_settling_time += _controlParameters->controller_dt;
         }
         // If reached settling time, run locomotion controller
-        else {
-            desired_command_mode = CONTROL_MODE::locomotion;            
+        else
+        {
+            desired_command_mode = CONTROL_MODE::locomotion;
             reset_flag = false;
-        }        
+        }
     }
-    
+
     switch (desired_command_mode)
     {
     case CONTROL_MODE::locomotion:
@@ -336,8 +348,7 @@ void Imitation_Controller::locomotion_ctrl()
     _stateEstimator->setContactPhase(stanceState);
     iter_loco++;
     mpc_time = iter_loco * _controlParameters->controller_dt; // where we are since MPC starts
-    iter_between_mpc_update++;    
-    
+    iter_between_mpc_update++;
 }
 
 void Imitation_Controller::address_yaw_ambiguity()
@@ -354,6 +365,34 @@ void Imitation_Controller::address_yaw_ambiguity()
         yaw_flip_mins_times++;
     }
     yaw = raw_yaw_cur + 2 * PI * yaw_flip_plus_times - 2 * PI * yaw_flip_mins_times;
+}
+
+/*
+    @brief: check whether the controller fails
+    @       orientation out of certain thresholds or estimated torque too large are considered as a failure
+*/
+bool Imitation_Controller::check_safty()
+{
+    // Check orientation
+    if (fabs(_stateEstimate->rpy(0)) >= 2 ||
+        fabs(_stateEstimate->rpy(1)) >= 2)
+    {
+        printf("Orientation safety check failed!\n");
+        return false;
+    }
+
+    for (int leg = 0; leg < 4; leg++)
+    {
+        for (int i = 0; i < 3; i++)
+        {
+            if (fabs(_legController->datas[leg].tauEstimate[i]) > 200)
+            {
+                printf("Tau limit safety check failed!\n");
+                return false;
+            }
+        }
+    }
+    return true;
 }
 
 void Imitation_Controller::update_mpc_if_needed()
@@ -396,27 +435,27 @@ void Imitation_Controller::update_mpc_if_needed()
 void Imitation_Controller::reset_mpc()
 {
     mpc_data.reset_mpc = true;
+    mpc_data.MS = true;
     mpc_data_lcm.publish("mpc_data", &mpc_data);
-    mpc_data.reset_mpc = false;    
+    mpc_data.reset_mpc = false;
 }
 
 void Imitation_Controller::apply_external_force()
 {
-    ext_force_linear << 0, userParameters.ext_force_mag, 0;
+    ext_force_linear << 0, 0, 0;
     ext_force_angular << 0, 0, 0;
     if ((ext_force_start_time < mpc_time) && (mpc_time < ext_force_end_time))
     {
-        ext_force.force[0] = ext_force_linear[0];
-        ext_force.force[1] = ext_force_linear[1];
-        ext_force.force[2] = ext_force_linear[2];
-
-        ext_force.torque[0] = ext_force_angular[0];
-        ext_force.torque[1] = ext_force_angular[1];
-        ext_force.torque[2] = ext_force_angular[2];
-
-        ext_force_lcm.publish("ext_force", &ext_force);
+        ext_force_linear << 0, userParameters.ext_force_mag, 0;
     }
-        
+    ext_force.force[0] = ext_force_linear[0];
+    ext_force.force[1] = ext_force_linear[1];
+    ext_force.force[2] = ext_force_linear[2];
+
+    ext_force.torque[0] = ext_force_angular[0];
+    ext_force.torque[1] = ext_force_angular[1];
+    ext_force.torque[2] = ext_force_angular[2];
+    ext_force_lcm.publish("ext_force", &ext_force);
 }
 /*
     @brief  Get the first value from the mpc solution bag
@@ -536,65 +575,4 @@ void Imitation_Controller::getStatusDuration()
         }
     }
     mpc_cmd_mutex.unlock();
-}
-
-void Imitation_Controller::avoid_leg_collision_CT(int i)
-{
-    Vec3<float> dfoot, dknee, pknee1, pknee2;
-    Mat3<float> Kp_collision;
-    Vec3<float> grad;
-    Kp_collision = Vec3<float>(.5, .5, .5).asDiagonal();
-    grad.setZero();
-    float r = .2;
-
-    compute_knee_position(pknee1, _legController->datas[i].q, i);
-
-    switch (i)
-    {
-    case 0:
-        dfoot = pFoot[0] - pFoot[1];
-        compute_knee_position(pknee2, _legController->datas[1].q, 1);
-        break;
-    case 1:
-        dfoot = pFoot[1] - pFoot[0];
-        compute_knee_position(pknee2, _legController->datas[0].q, 0);
-        break;
-    case 2:
-        dfoot = pFoot[2] - pFoot[3];
-        compute_knee_position(pknee2, _legController->datas[3].q, 3);
-        break;
-    case 3:
-        dfoot = pFoot[3] - pFoot[2];
-        compute_knee_position(pknee2, _legController->datas[2].q, 2);
-        break;
-    }
-    if (dfoot.norm() < r)
-    {
-        grad -= pow(dfoot.norm(), -2) * dfoot;
-    }
-    dknee = pknee1 - pknee2;
-    if (dknee.norm() < r)
-    {
-        grad -= pow(dknee.norm(), -1) * dknee;
-    }
-
-    const auto &seResult = _stateEstimator->getResult();
-    _legController->commands[i].forceFeedForward = -Kp_collision * seResult.rBody * grad;
-}
-
-void Imitation_Controller::compute_knee_position(Vec3<float> &p, Vec3<float> &q, int leg)
-{
-    float l1 = _quadruped->_abadLinkLength;
-    float l2 = _quadruped->_hipLinkLength;
-    float sideSign = _quadruped->getSideSign(leg);
-
-    float s1 = std::sin(q(0));
-    float s2 = std::sin(q(1));
-
-    float c1 = std::cos(q(0));
-    float c2 = std::cos(q(1));
-
-    p[0] = l2 * s2;
-    p[1] = l1 * sideSign * c1 + l2 * c2 * s1;
-    p[2] = l1 * sideSign * s1 - l2 * c1 * c2;
 }
