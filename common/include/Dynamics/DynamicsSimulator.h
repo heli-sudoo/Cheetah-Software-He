@@ -90,7 +90,6 @@ class DynamicsSimulator {
    * Add external forces. These are added on top of the ground reaction forces
    * The i-th force is the spatial force applied to body i.
    * This is cleared after each step of the simulator.
-   * Body id starts with id=5 which is the floating base
    */
   void setAllExternalForces(const vectorAligned<SVec<T>>& forces) {
     _model._externalForces = forces;
