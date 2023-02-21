@@ -8,7 +8,10 @@ Swing_Kp_cartesian : [700, 700, 100]
 Swing_Kd_cartesian : [7, 7, 7]
 Swing_Kp_joint     : [0, 0, 0]
 Swing_Kd_joint     : [0.2, 0.2, 0.2]
+Swing_height       : 1.2
 
-max_loco_time      : 3.0
-max_settling_time  : 1.0
+max_loco_time      : 5.0
+max_settling_time  : 3.0
 num_rand_tests     : 10
+ext_force_start_time  : 2.5
+ext_force_end_time    : 2.6
