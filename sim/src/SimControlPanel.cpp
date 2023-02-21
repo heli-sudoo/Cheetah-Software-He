@@ -238,7 +238,7 @@ void SimControlPanel::handleResetSimLCM(const lcm::ReceiveBuffer *rbuf, const st
   if (msg->reset)
   {
     FBModelState<double> homeState;
-    homeState.bodyPosition = Vec3<double>(0, 0, 0.25);
+    homeState.bodyPosition = Vec3<double>(0, 0, 0.27);
     homeState.bodyOrientation = rpyToQuat(Vec3<double>(0, 0, 0));
     homeState.bodyVelocity = SVec<double>::Zero();
     homeState.q = DVec<double>(12);
@@ -254,13 +254,20 @@ void SimControlPanel::handleResetSimLCM(const lcm::ReceiveBuffer *rbuf, const st
 void SimControlPanel::handleExtForceLCM(const lcm::ReceiveBuffer *rbuf, const std::string &chan,
                                         const extForce_t *msg)
 {
-  SVec<double> spatial_force;
+  SVec<double> spatial_ext_force;
   vectorAligned<SVec<double>> sforces;
-  spatial_force.setZero();
-  spatial_force.head(3) << msg->force[0], msg->force[1], msg->force[2];
-  spatial_force.tail(3) << msg->torque[0], msg->torque[1], msg->torque[2];
+  spatial_ext_force.setZero();
+  // You have to define external forces for all 18 bodies
+  for (int i = 0; i < 18; i++)
+  {
+    sforces.push_back(SVec<double>::Zero());
+  }
   
-  sforces.push_back(spatial_force);
+  // First three are moments, last three are line forces
+  spatial_ext_force.head(3) << msg->torque[0], msg->torque[1], msg->torque[2];
+  spatial_ext_force.tail(3) << msg->force[0], msg->force[1], msg->force[2];
+  
+  sforces[5]=spatial_ext_force;
   _simulation->_simulator->setAllExternalForces(sforces);
 }                                        
 
