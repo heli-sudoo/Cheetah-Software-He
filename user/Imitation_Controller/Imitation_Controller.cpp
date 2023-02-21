@@ -76,7 +76,7 @@ void Imitation_Controller::initializeController()
     mpc_time = 0;
     iter_loco = 0;
     iter_between_mpc_update = 0;
-    nsteps_between_mpc_update = 5;
+    nsteps_between_mpc_update = 10;
     yaw_flip_plus_times = 0;
     yaw_flip_mins_times = 0;
     raw_yaw_cur = _stateEstimate->rpy[2];
@@ -190,19 +190,16 @@ void Imitation_Controller::locomotion_ctrl()
     }
 
     // do some first-time initilization
-    float h = 0.15;
+    float h = 0.12;
+    if (mpc_time < 0.8)
+    {
+        h = 0.35;
+    }
+    
     if (firstRun)
     {
         for (int i = 0; i < 4; i++)
-        {
-            if (i < 2)
-            {
-                h = 0.15;
-            }
-            else
-            {
-                h = 0.15;
-            }
+        {            
 
             footSwingTrajectories[i].setHeight(h);
             footSwingTrajectories[i].setInitialPosition(pFoot[i]);
@@ -213,14 +210,6 @@ void Imitation_Controller::locomotion_ctrl()
     }
     for (int i = 0; i < 4; i++)
     {
-        // if (i < 2)
-        // {
-        //     h = 0.15;
-        // }
-        // else
-        // {
-        //     h = 0.15;
-        // }
         footSwingTrajectories[i].setHeight(h);
         // footSwingTrajectories[i].setFinalPosition(pf[i]);
 
