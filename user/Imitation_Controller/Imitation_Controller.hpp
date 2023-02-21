@@ -11,6 +11,7 @@
 #include "hkd_command_lcmt.hpp"
 #include "hkd_data_lcmt.hpp"
 #include "reset_sim_t.hpp"
+#include "extForce_t.hpp"
 
 using std::deque;
 class Imitation_Controller : public RobotController
@@ -43,6 +44,7 @@ public:
     void compute_knee_position(Vec3<float>&p, Vec3<float>&q, int leg);
     void reset_mpc();
     void address_yaw_ambiguity();
+    void apply_external_force();
 
 private: //help functions
     void draw_swing();
@@ -111,13 +113,19 @@ public:
     float raw_yaw_cur;
     float yaw;
 
-    // Defined for reset
+    // Defined for reset and external forces
     lcm::LCM reset_sim_lcm;
+    lcm::LCM ext_force_lcm;
     reset_sim_t reset_sim;
+    extForce_t ext_force;
     bool reset_flag;
     float reset_settling_time;
     float max_reset_settling_time;
     float max_loco_time;
+    float ext_force_start_time;
+    float ext_force_end_time;    
+    Vec3<float> ext_force_linear;
+    Vec3<float> ext_force_angular;
 
 private:
     Vec24<float> mpc_control;

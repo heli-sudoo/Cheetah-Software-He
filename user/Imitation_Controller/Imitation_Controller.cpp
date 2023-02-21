@@ -23,7 +23,8 @@ enum RC_MODE
 
 Imitation_Controller::Imitation_Controller() : mpc_cmds_lcm(getLcmUrl(255)),
                                                mpc_data_lcm(getLcmUrl(255)),
-                                               reset_sim_lcm(getLcmUrl(255))
+                                               reset_sim_lcm(getLcmUrl(255)),
+                                               ext_force_lcm(getLcmUrl(255))
 {
     if (!mpc_cmds_lcm.good())
     {
@@ -55,12 +56,14 @@ void Imitation_Controller::initializeController()
     mpc_time = 0;
     iter_loco = 0;
     iter_between_mpc_update = 0;
-    nsteps_between_mpc_update = 5;
+    nsteps_between_mpc_update = 10;
     yaw_flip_plus_times = 0;
     yaw_flip_mins_times = 0;
     raw_yaw_cur = _stateEstimate->rpy[2];    
     max_loco_time = userParameters.max_loco_time; // maximum locomotion time in seconds
     max_reset_settling_time = userParameters.max_settling_time; // maximum reset settling time
+    ext_force_start_time = userParameters.ext_force_start_time;
+    ext_force_end_time = userParameters.ext_force_end_time;
 
     /* Variable initilization */
     for (int foot = 0; foot < 4; foot++)
@@ -192,10 +195,12 @@ void Imitation_Controller::locomotion_ctrl()
     getContactStatus();
     getStatusDuration();
     update_mpc_if_needed();
-    draw_swing();
+    // draw_swing();
 
     // get a value from the solution bag
     get_a_val_from_solution_bag();
+
+    apply_external_force();
 
     Kp_swing = userParameters.Swing_Kp_cartesian.cast<float>().asDiagonal();
     Kd_swing = userParameters.Swing_Kd_cartesian.cast<float>().asDiagonal();
@@ -217,7 +222,7 @@ void Imitation_Controller::locomotion_ctrl()
     }
 
     // do some first-time initilization
-    float h = 0.15;
+    float h = userParameters.Swing_height;
     if (firstRun)
     {
         for (int i = 0; i < 4; i++)
@@ -395,6 +400,24 @@ void Imitation_Controller::reset_mpc()
     mpc_data.reset_mpc = false;    
 }
 
+void Imitation_Controller::apply_external_force()
+{
+    ext_force_linear << 0, 70, 0;
+    ext_force_angular << 0, 0, 0;
+    if ((ext_force_start_time < mpc_time) && (mpc_time < ext_force_end_time))
+    {
+        ext_force.force[0] = ext_force_linear[0];
+        ext_force.force[1] = ext_force_linear[1];
+        ext_force.force[2] = ext_force_linear[2];
+
+        ext_force.torque[0] = ext_force_angular[0];
+        ext_force.torque[1] = ext_force_angular[1];
+        ext_force.torque[2] = ext_force_angular[2];
+
+        ext_force_lcm.publish("ext_force", &ext_force);
+    }
+        
+}
 /*
     @brief  Get the first value from the mpc solution bag
             This value is used for several control points the timestep between which is controller_dt
