@@ -402,7 +402,7 @@ void Imitation_Controller::reset_mpc()
 
 void Imitation_Controller::apply_external_force()
 {
-    ext_force_linear << 0, 70, 0;
+    ext_force_linear << 0, userParameters.ext_force_mag, 0;
     ext_force_angular << 0, 0, 0;
     if ((ext_force_start_time < mpc_time) && (mpc_time < ext_force_end_time))
     {
