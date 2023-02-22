@@ -190,10 +190,10 @@ void Imitation_Controller::locomotion_ctrl()
     }
 
     // do some first-time initilization
-    float h = 0.12;
+    float h = 0.12;     // swing height (regular trotting)
     if (mpc_time < 0.8)
     {
-        h = 0.35;
+        h = 0.35;       // swing heigh (for jumping high)
     }
     
     if (firstRun)
