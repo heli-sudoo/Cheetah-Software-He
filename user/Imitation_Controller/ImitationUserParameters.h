@@ -20,7 +20,8 @@ public:
         INIT_PARAMETER(num_rand_tests),
         INIT_PARAMETER(ext_force_start_time),
         INIT_PARAMETER(ext_force_end_time),
-        INIT_PARAMETER(ext_force_mag)
+        INIT_PARAMETER(ext_force_mag),
+        INIT_PARAMETER(MSDDP)
       {}
 
   DECLARE_PARAMETER(Vec3<double>, Kp_jointPD);
@@ -37,6 +38,7 @@ public:
   DECLARE_PARAMETER(double, ext_force_start_time);
   DECLARE_PARAMETER(double, ext_force_end_time);
   DECLARE_PARAMETER(double, ext_force_mag);
+  DECLARE_PARAMETER(double, MSDDP);
 };
 
 #endif //PROJECT_JPOSUSERPARAMETERS_H

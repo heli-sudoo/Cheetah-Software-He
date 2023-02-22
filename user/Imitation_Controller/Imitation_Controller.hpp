@@ -48,6 +48,7 @@ public:
 private: //help functions
     void draw_swing();
     void test_mpc_update();
+    void passive_mode();
     
 
 protected:

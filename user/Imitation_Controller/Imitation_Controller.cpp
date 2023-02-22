@@ -46,8 +46,8 @@ Imitation_Controller::Imitation_Controller() : mpc_cmds_lcm(getLcmUrl(255)),
     desired_command_mode = CONTROL_MODE::estop;
     filter_window = 5;
 
-    reset_flag = false;
     reset_settling_time = 0;
+    reset_flag = false;
 }
 /*
     @brief: Do some initialiation
@@ -141,7 +141,7 @@ void Imitation_Controller::runController()
 
     is_safe = is_safe && check_safty();
 
-    if (!is_safe)
+    if (iter_loco * _controlParameters->controller_dt >= userParameters.max_loco_time)
     {
         reset_flag = true;
         reset_settling_time = 0;
@@ -155,7 +155,6 @@ void Imitation_Controller::runController()
         if (reset_settling_time == 0)
         {
             printf("resettling controller ... \n");
-            initializeController();
             reset_mpc();
         }
         // Reset simulation
@@ -163,6 +162,7 @@ void Imitation_Controller::runController()
         {
             reset_sim.reset = true;
             reset_sim_lcm.publish("reset_sim", &reset_sim);
+            initializeController();
         }
 
         // Allow the simulated robot some time to settle
@@ -171,11 +171,11 @@ void Imitation_Controller::runController()
             desired_command_mode = CONTROL_MODE::standup;
             reset_settling_time += _controlParameters->controller_dt;
         }
-        // If reached settling time, run locomotion controller
+        // If reached maximum settling time, run locomotion controller
         else
         {
+            reset_flag = false; // reset finished
             desired_command_mode = CONTROL_MODE::locomotion;
-            reset_flag = false;
         }
     }
 
@@ -193,14 +193,51 @@ void Imitation_Controller::runController()
     default:
         break;
     }
+
+    apply_external_force();
 }
 
+void Imitation_Controller::passive_mode()
+{
+    Mat3<float> kpMat_passive; // gains when in passive (e.g. standing) mode
+    Mat3<float> kdMat_passive;
+    kpMat_passive << 4, 0, 0, 0, 4, 0, 0, 0, 4;
+    kdMat_passive << .2, 0, 0, 0, .2, 0, 0, 0, .2;
+
+    float q_front_adab = 0.0;         // Define nominal joint angles
+    float q_front_hip = -0.25 * M_PI; // note that the sign of these are opposite the matlab simulation
+    float q_front_knee = 0.5 * M_PI;
+
+    float q_back_adab = 0.0;
+    float q_back_hip = -0.25 * M_PI;
+    float q_back_knee = 0.5 * M_PI;
+
+    for (int leg(0); leg < 2; ++leg)
+    { // Front legs
+        _legController->commands[leg].qDes[0] = q_front_adab;
+        _legController->commands[leg].qDes[1] = q_front_hip;
+        _legController->commands[leg].qDes[2] = q_front_knee;
+
+        _legController->commands[leg].kpJoint = kpMat_passive;
+        _legController->commands[leg].kdJoint = kdMat_passive;
+    }
+    for (int leg(2); leg < 4; ++leg)
+    { // Back legs
+        _legController->commands[leg].qDes[0] = q_back_adab;
+        _legController->commands[leg].qDes[1] = q_back_hip;
+        _legController->commands[leg].qDes[2] = q_back_knee;
+
+        _legController->commands[leg].kpJoint = kpMat_passive;
+        _legController->commands[leg].kdJoint = kdMat_passive;
+    }
+}
 void Imitation_Controller::locomotion_ctrl()
 {
-    if (mpc_time >= max_loco_time)
+    iter_loco++;
+
+    if (!is_safe)
     {
-        reset_flag = true;
-        reset_settling_time = 0;
+        passive_mode();
         return;
     }
 
@@ -209,10 +246,8 @@ void Imitation_Controller::locomotion_ctrl()
     update_mpc_if_needed();
     // draw_swing();
 
-    // get a value from the solution bag
+    // get a control from the solution bag
     get_a_val_from_solution_bag();
-
-    apply_external_force();
 
     Kp_swing = userParameters.Swing_Kp_cartesian.cast<float>().asDiagonal();
     Kd_swing = userParameters.Swing_Kd_cartesian.cast<float>().asDiagonal();
@@ -345,8 +380,8 @@ void Imitation_Controller::locomotion_ctrl()
             stanceState[i] = (stanceTimes[i] - stanceTimesRemain[i]) / stanceTimes[i];
         }
     }
+
     _stateEstimator->setContactPhase(stanceState);
-    iter_loco++;
     mpc_time = iter_loco * _controlParameters->controller_dt; // where we are since MPC starts
     iter_between_mpc_update++;
 }
@@ -374,25 +409,36 @@ void Imitation_Controller::address_yaw_ambiguity()
 bool Imitation_Controller::check_safty()
 {
     // Check orientation
-    if (fabs(_stateEstimate->rpy(0)) >= 2 ||
-        fabs(_stateEstimate->rpy(1)) >= 2)
-    {
-        printf("Orientation safety check failed!\n");
-        return false;
-    }
+    // if (fabs(_stateEstimate->rpy(0)) >= 2 ||
+    //     fabs(_stateEstimate->rpy(1)) >= 2)
+    //     // fabs(_stateEstimate->rpy(2)) >= 2)
+    // {
+    //     printf("Orientation safety check failed!\n");
+    //     return false;
+    // }
 
+    bool tau_safe = true;
     for (int leg = 0; leg < 4; leg++)
     {
-        for (int i = 0; i < 3; i++)
+        if (_legController->datas[leg].tauEstimate.norm() > 400)
         {
-            if (fabs(_legController->datas[leg].tauEstimate[i]) > 200)
-            {
-                printf("Tau limit safety check failed!\n");
-                return false;
-            }
+            printf("Tau limit safety check failed!\n");
+            tau_safe = false;
+            break;
+        }
+        if (_legController->datas[leg].qd.norm() > 100)
+        {
+            printf("Tau limit safety check failed!\n");
+            tau_safe = false;
+            break;
         }
     }
-    return true;
+    if ((mpc_control.array().isNaN() > 0).all())
+    {
+        tau_safe = false;
+    }
+    
+    return tau_safe;
 }
 
 void Imitation_Controller::update_mpc_if_needed()
@@ -435,7 +481,7 @@ void Imitation_Controller::update_mpc_if_needed()
 void Imitation_Controller::reset_mpc()
 {
     mpc_data.reset_mpc = true;
-    mpc_data.MS = true;
+    mpc_data.MS = (userParameters.MSDDP > 0);
     mpc_data_lcm.publish("mpc_data", &mpc_data);
     mpc_data.reset_mpc = false;
 }
@@ -444,7 +490,8 @@ void Imitation_Controller::apply_external_force()
 {
     ext_force_linear << 0, 0, 0;
     ext_force_angular << 0, 0, 0;
-    if ((ext_force_start_time < mpc_time) && (mpc_time < ext_force_end_time))
+    if ((ext_force_start_time <= iter_loco * _controlParameters->controller_dt) &&
+        (iter_loco * _controlParameters->controller_dt <= ext_force_start_time + _controlParameters->controller_dt))
     {
         ext_force_linear << 0, userParameters.ext_force_mag, 0;
     }

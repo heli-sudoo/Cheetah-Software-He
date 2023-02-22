@@ -254,21 +254,27 @@ void SimControlPanel::handleResetSimLCM(const lcm::ReceiveBuffer *rbuf, const st
 void SimControlPanel::handleExtForceLCM(const lcm::ReceiveBuffer *rbuf, const std::string &chan,
                                         const extForce_t *msg)
 {
-  SVec<double> spatial_ext_force;
-  vectorAligned<SVec<double>> sforces;
-  spatial_ext_force.setZero();
-  // You have to define external forces for all 18 bodies
-  for (int i = 0; i < 18; i++)
-  {
-    sforces.push_back(SVec<double>::Zero());
-  }
+  // SVec<double> spatial_ext_force;
+  // vectorAligned<SVec<double>> sforces;
+  // spatial_ext_force.setZero();
+  // // You have to define external forces for all 18 bodies
+  // for (int i = 0; i < 18; i++)
+  // {
+  //   sforces.push_back(SVec<double>::Zero());
+  // }
   
-  // First three are moments, last three are line forces
-  spatial_ext_force.head(3) << msg->torque[0], msg->torque[1], msg->torque[2];
-  spatial_ext_force.tail(3) << msg->force[0], msg->force[1], msg->force[2];
+  // // First three are moments, last three are line forces
+  // spatial_ext_force.head(3) << msg->torque[0], msg->torque[1], msg->torque[2];
+  // spatial_ext_force.tail(3) << msg->force[0], msg->force[1], msg->force[2];
   
-  sforces[5]=spatial_ext_force;
-  _simulation->_simulator->setAllExternalForces(sforces);
+  // sforces[5]=spatial_ext_force;
+  // _simulation->_simulator->setAllExternalForces(sforces);
+  SVec<double> kickVel;
+  kickVel.setZero();
+  kickVel.tail(3) << msg->force[0], msg->force[1], msg->force[2];
+  FBModelState<double> state = _simulation->getRobotState();
+  state.bodyVelocity += kickVel;
+  _simulation->setRobotState(state);
 }                                        
 
 void SimControlPanel::handleIndexmapLCM(const lcm::ReceiveBuffer *rbuf,

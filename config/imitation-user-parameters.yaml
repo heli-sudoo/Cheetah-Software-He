@@ -14,5 +14,6 @@ max_loco_time      : 5.0
 max_settling_time  : 3.0
 num_rand_tests     : 10
 ext_force_start_time  : 2.2
-ext_force_end_time    : 2.6
-ext_force_mag         : 50
+ext_force_end_time    : 2.206
+ext_force_mag         : 0.4
+MSDDP                 : 1
