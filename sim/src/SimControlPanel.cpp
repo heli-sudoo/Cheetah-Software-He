@@ -242,7 +242,7 @@ void SimControlPanel::handleResetSimLCM(const lcm::ReceiveBuffer *rbuf, const st
     homeState.bodyOrientation = rpyToQuat(Vec3<double>(0, 0, 0));
     homeState.bodyVelocity = SVec<double>::Zero();
     homeState.q = DVec<double>(12);
-    homeState.q << -0.1, -0.7874, 1.7537, 0.1, -0.7874, 1.7537, -0.1, -0.7874, 1.7537, 0.1, -0.7874, 1.7537;
+    homeState.q << -0.0, -0.7874, 1.7537, 0.0, -0.7874, 1.7537, -0.0, -0.7874, 1.7537, 0.0, -0.7874, 1.7537;
     homeState.qd = DVec<double>(12);
     homeState.qd.setZero();
     homeState.reset = true;
@@ -275,6 +275,7 @@ void SimControlPanel::handleExtForceLCM(const lcm::ReceiveBuffer *rbuf, const st
   FBModelState<double> state = _simulation->getRobotState();
   state.bodyVelocity += kickVel;
   _simulation->setRobotState(state);
+  printf("kick is applied \n");
 }                                        
 
 void SimControlPanel::handleIndexmapLCM(const lcm::ReceiveBuffer *rbuf,
