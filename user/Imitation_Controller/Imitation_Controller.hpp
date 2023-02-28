@@ -44,6 +44,7 @@ public:
     void address_yaw_ambiguity();
     void apply_external_force();
     bool check_safty();
+    void twist_leg();
 
 private: //help functions
     void draw_swing();
@@ -127,6 +128,8 @@ public:
     Vec3<float> ext_force_linear;
     Vec3<float> ext_force_angular;
     bool is_safe;
+    bool has_mpc_reset;
+    int ext_force_count;
 
 private:
     Vec24<float> mpc_control;

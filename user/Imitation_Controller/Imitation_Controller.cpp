@@ -65,7 +65,7 @@ void Imitation_Controller::initializeController()
     max_loco_time = userParameters.max_loco_time;               // maximum locomotion time in seconds
     max_reset_settling_time = userParameters.max_settling_time; // maximum reset settling time
     ext_force_start_time = userParameters.ext_force_start_time;
-    ext_force_end_time = userParameters.ext_force_end_time;
+    ext_force_count = 0;
     is_safe = true;
 
     /* Variable initilization */
@@ -139,6 +139,8 @@ void Imitation_Controller::runController()
 
     address_yaw_ambiguity();
 
+    // apply_external_force();
+
     is_safe = is_safe && check_safty();
 
     if (iter_loco * _controlParameters->controller_dt >= userParameters.max_loco_time)
@@ -150,32 +152,37 @@ void Imitation_Controller::runController()
     desired_command_mode = static_cast<int>(_controlParameters->control_mode);
 
     // If reset_flag is set to true
-    if (reset_flag && (desired_command_mode == CONTROL_MODE::locomotion))
+    if (userParameters.repeat > 0)
     {
-        if (reset_settling_time == 0)
+        if (reset_flag && (desired_command_mode == CONTROL_MODE::locomotion))
         {
-            printf("resettling controller ... \n");
-            reset_mpc();
-        }
-        // Reset simulation
-        if (reset_settling_time < max_reset_settling_time / 2)
-        {
-            reset_sim.reset = true;
-            reset_sim_lcm.publish("reset_sim", &reset_sim);
-            initializeController();
-        }
-
-        // Allow the simulated robot some time to settle
-        if (reset_settling_time < max_reset_settling_time)
-        {
-            desired_command_mode = CONTROL_MODE::standup;
             reset_settling_time += _controlParameters->controller_dt;
-        }
-        // If reached maximum settling time, run locomotion controller
-        else
-        {
-            reset_flag = false; // reset finished
-            desired_command_mode = CONTROL_MODE::locomotion;
+            // Reset simulation
+            if (reset_settling_time < max_reset_settling_time)
+            {
+                if (reset_settling_time < max_reset_settling_time / 3)
+                {
+                    printf("resettling simulation \n");
+                    initializeController();
+                    reset_sim.reset = true;
+                    reset_sim_lcm.publish("reset_sim", &reset_sim);
+                    has_mpc_reset = false;
+                    return;
+                }
+                if (!has_mpc_reset)
+                {
+                    printf("resetting mpc \n");
+                    reset_mpc();
+                    has_mpc_reset = true;
+                }
+
+                desired_command_mode = CONTROL_MODE::standup;
+            }
+            else // If reached maximum settling time, run locomotion controller
+            {
+                reset_flag = false; // reset finished
+                desired_command_mode = CONTROL_MODE::locomotion;
+            }
         }
     }
 
@@ -194,7 +201,7 @@ void Imitation_Controller::runController()
         break;
     }
 
-    apply_external_force();
+    twist_leg();
 }
 
 void Imitation_Controller::passive_mode()
@@ -235,7 +242,8 @@ void Imitation_Controller::locomotion_ctrl()
 {
     iter_loco++;
 
-    if (!is_safe)
+    if (!is_safe ||
+        iter_loco * _controlParameters->controller_dt >= 4.0)
     {
         passive_mode();
         return;
@@ -409,18 +417,18 @@ void Imitation_Controller::address_yaw_ambiguity()
 bool Imitation_Controller::check_safty()
 {
     // Check orientation
-    // if (fabs(_stateEstimate->rpy(0)) >= 2 ||
-    //     fabs(_stateEstimate->rpy(1)) >= 2)
-    //     // fabs(_stateEstimate->rpy(2)) >= 2)
-    // {
-    //     printf("Orientation safety check failed!\n");
-    //     return false;
-    // }
+    // if (fabs(_stateEstimate->rpy(0)) >= 1.0 ||
+    //     fabs(_stateEstimate->rpy(1)) >= 1.0 ||
+    //     fabs(_stateEstimate->rpy(2)) >= 1.0)
+    //     {
+    //         printf("Orientation safety check failed!\n");
+    //         return false;
+    //     }
 
     bool tau_safe = true;
     for (int leg = 0; leg < 4; leg++)
     {
-        if (_legController->datas[leg].tauEstimate.norm() > 400)
+        if (_legController->datas[leg].tauEstimate.norm() > 200)
         {
             printf("Tau limit safety check failed!\n");
             tau_safe = false;
@@ -437,7 +445,7 @@ bool Imitation_Controller::check_safty()
     {
         tau_safe = false;
     }
-    
+
     return tau_safe;
 }
 
@@ -490,19 +498,54 @@ void Imitation_Controller::apply_external_force()
 {
     ext_force_linear << 0, 0, 0;
     ext_force_angular << 0, 0, 0;
-    if ((ext_force_start_time <= iter_loco * _controlParameters->controller_dt) &&
-        (iter_loco * _controlParameters->controller_dt <= ext_force_start_time + _controlParameters->controller_dt))
-    {
-        ext_force_linear << 0, userParameters.ext_force_mag, 0;
-    }
-    ext_force.force[0] = ext_force_linear[0];
-    ext_force.force[1] = ext_force_linear[1];
-    ext_force.force[2] = ext_force_linear[2];
 
-    ext_force.torque[0] = ext_force_angular[0];
-    ext_force.torque[1] = ext_force_angular[1];
-    ext_force.torque[2] = ext_force_angular[2];
-    ext_force_lcm.publish("ext_force", &ext_force);
+    int ext_start_iter = int(ext_force_start_time / _controlParameters->controller_dt);
+
+    if ((iter_loco >= ext_start_iter) &&
+        (ext_force_count < userParameters.ext_force_number))
+    {
+        if ((iter_loco - ext_start_iter) % 20 == 0)
+        {
+            ext_force_linear << 0, userParameters.ext_force_mag, 0;
+            ext_force_count++;
+            // std::cout << "kick is applied with mag = " << userParameters.ext_force_mag << std::endl;
+            ext_force.force[0] = ext_force_linear[0];
+            ext_force.force[1] = ext_force_linear[1];
+            ext_force.force[2] = ext_force_linear[2];
+
+            ext_force.torque[0] = ext_force_angular[0];
+            ext_force.torque[1] = ext_force_angular[1];
+            ext_force.torque[2] = ext_force_angular[2];
+            ext_force_lcm.publish("ext_force", &ext_force);
+        }
+    }
+}
+
+void Imitation_Controller::twist_leg()
+{
+    Mat3<float> kpMat_passive; // gains when in passive (e.g. standing) mode
+    Mat3<float> kdMat_passive;
+    kpMat_passive << 4, 0, 0, 0, 4, 0, 0, 0, 4;
+    kdMat_passive << .2, 0, 0, 0, .2, 0, 0, 0, .2;
+
+    float q_back_adab = 0.0;
+    float q_back_hip = -1.2;
+    float q_back_knee = 2.5;
+
+    int ext_start_iter = int(ext_force_start_time / _controlParameters->controller_dt);
+    if (iter_loco >= ext_start_iter &&
+        iter_loco - ext_start_iter <= userParameters.ext_force_number)
+    {
+        // twist back left leg
+        int leg = 3;
+        _legController->commands[leg].zero();
+        _legController->commands[leg].qDes[0] = q_back_adab;
+        _legController->commands[leg].qDes[1] = q_back_hip;
+        _legController->commands[leg].qDes[2] = q_back_knee;
+
+        _legController->commands[leg].kpJoint = kpMat_passive;
+        _legController->commands[leg].kdJoint = kdMat_passive;
+    }
 }
 /*
     @brief  Get the first value from the mpc solution bag

@@ -16,12 +16,12 @@ public:
         INIT_PARAMETER(Swing_Kd_joint),
         INIT_PARAMETER(Swing_height),
         INIT_PARAMETER(max_loco_time),
-        INIT_PARAMETER(max_settling_time),
-        INIT_PARAMETER(num_rand_tests),
+        INIT_PARAMETER(max_settling_time),        
         INIT_PARAMETER(ext_force_start_time),
-        INIT_PARAMETER(ext_force_end_time),
+        INIT_PARAMETER(ext_force_number),
         INIT_PARAMETER(ext_force_mag),
-        INIT_PARAMETER(MSDDP)
+        INIT_PARAMETER(MSDDP),
+        INIT_PARAMETER(repeat)
       {}
 
   DECLARE_PARAMETER(Vec3<double>, Kp_jointPD);
@@ -33,12 +33,12 @@ public:
   DECLARE_PARAMETER(Vec3<double>, Swing_Kd_joint);
   DECLARE_PARAMETER(double, Swing_height);
   DECLARE_PARAMETER(double, max_loco_time);
-  DECLARE_PARAMETER(double, max_settling_time);
-  DECLARE_PARAMETER(double, num_rand_tests);
+  DECLARE_PARAMETER(double, max_settling_time);  
   DECLARE_PARAMETER(double, ext_force_start_time);
-  DECLARE_PARAMETER(double, ext_force_end_time);
+  DECLARE_PARAMETER(double, ext_force_number);
   DECLARE_PARAMETER(double, ext_force_mag);
   DECLARE_PARAMETER(double, MSDDP);
+  DECLARE_PARAMETER(double, repeat);
 };
 
 #endif //PROJECT_JPOSUSERPARAMETERS_H
