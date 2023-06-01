@@ -11,7 +11,6 @@
 #include "hkd_command_lcmt.hpp"
 #include "hkd_data_lcmt.hpp"
 
-using std::deque;
 class Imitation_Controller : public RobotController
 {
 public:
@@ -51,7 +50,7 @@ protected:
 
 public:
     // MPC
-    deque<Vec24<float>> mpc_control_bag;
+    std::deque<Vec24<float>> mpc_control_bag;
     double mpc_time;
     int iter;
     int iter_loco;
@@ -89,7 +88,7 @@ public:
     Vec3<float> qJ_des[4];
 
     // foot location filter
-    deque<Vec3<float>> pf_filter_buffer[4]; // buffer storing re-optimized foot locations
+    std::deque<Vec3<float>> pf_filter_buffer[4]; // buffer storing re-optimized foot locations
     int filter_window;
 
     // LCM

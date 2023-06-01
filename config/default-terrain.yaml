@@ -1,6 +1,6 @@
 ground-plane:
     type: "infinite-plane"
-    mu: 0.6
+    mu: 0.8
     restitution: 0.0
     #height: -0.5
     height: 0.0
@@ -9,7 +9,7 @@ ground-plane:
 
 #mesh-1:
     type: "mesh"
-    mu: 0.7
+    mu: 0.8
     restitution: 0
     transparent: 1
     #grid: 0.005

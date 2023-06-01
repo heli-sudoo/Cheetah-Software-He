@@ -213,16 +213,8 @@ void Imitation_Controller::locomotion_ctrl()
     }
     for (int i = 0; i < 4; i++)
     {
-        // if (i < 2)
-        // {
-        //     h = 0.15;
-        // }
-        // else
-        // {
-        //     h = 0.15;
-        // }
+       
         footSwingTrajectories[i].setHeight(h);
-        // footSwingTrajectories[i].setFinalPosition(pf[i]);
 
         // if the leg is in swing
         if (!contactStatus[i])
