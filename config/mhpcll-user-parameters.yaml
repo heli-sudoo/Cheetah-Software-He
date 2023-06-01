@@ -1,0 +1,11 @@
+__collection-name__: user-parameters
+
+Kp_jointPD:       [100, 50, 50]
+Kd_jointPD:       [2, 2, 2]
+angles_jointPD:   [0, -0.7874, 1.7537]
+draw_plan:        0
+
+Kp_joint:         [5, 5, 1]
+Kd_joint:         [1, 1, 0.3]
+
+WBC:              0
