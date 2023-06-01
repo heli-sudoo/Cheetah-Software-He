@@ -313,6 +313,17 @@ bool almostEqual_number(T n1, T n2)
     return false;
 }
 
+// Check if n1 >= n2
+template<typename T>
+bool approxGeq_number(T n1, T n2)
+{
+    if (n1 > n2 || almostEqual_number(n1, n2))
+    {
+       return true;
+    }    
+    return false;
+}
+
 std::string getLcmUrl(s64 ttl);
 
 #endif  // PROJECT_UTILITIES_H
