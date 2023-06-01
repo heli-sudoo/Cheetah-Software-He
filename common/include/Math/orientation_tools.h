@@ -392,4 +392,25 @@ Mat4<typename Derived1::Scalar> homoTransformation(const Eigen::DenseBase<Derive
     }
 }  // namespace ori
 
+template<typename Derived1, typename Derived2>
+Vec3<typename Derived1::Scalar> omegaBodyToEulrate(const Eigen::DenseBase<Derived1> &eul, const Eigen::DenseBase<Derived2> &omegaBody)
+{
+  Vec3<typename Derived1::Scalar> eulrate;
+  Mat3<typename Derived1::Scalar> T;
+  T.setZero();
+
+  typename Derived1::Scalar pitch(eul[1]), roll(eul[2]);
+  T(0,1) = std::sin(roll);
+  T(0,2) = std::cos(roll);
+  T(1,1) = std::cos(roll) * std::cos(pitch);
+  T(1,2) = -std::sin(roll) * std::cos(pitch);
+  T(2,0) = std::cos(pitch);
+  T(2,1) = std::sin(roll) * std::sin(pitch);
+  T(2,2) = std::cos(roll) * std::sin(pitch);
+  T = T/std::cos(pitch); 
+
+  eulrate = T * omegaBody.template cast<typename Derived1::Scalar>();
+  return eulrate;
+}
+
 #endif  // LIBBIOMIMETICS_ORIENTATION_TOOLS_H
