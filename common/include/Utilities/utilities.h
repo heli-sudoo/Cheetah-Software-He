@@ -324,6 +324,15 @@ bool approxGeq_number(T n1, T n2)
     return false;
 }
 
+template<typename T1, typename T2>
+void linearly_interpolate_matrices(const Eigen::MatrixBase<T1>& m0, const Eigen::MatrixBase<T1>&m1,
+        typename T1::Scalar dur, typename T1::Scalar t_cur, Eigen::MatrixBase<T2> const& mt)
+{
+
+  const_cast<Eigen::MatrixBase<T2>& > (mt) = 
+        m0 + (m1 - m0) * (t_cur/dur);    
+}        
+
 std::string getLcmUrl(s64 ttl);
 
 #endif  // PROJECT_UTILITIES_H
