@@ -9,6 +9,7 @@
 #include "MHPC_Command_lcmt.hpp"
 #include "MHPC_Data_lcmt.hpp"
 #include "MHPCLLUserParameters.h"
+#include "VWBC/include/VWBC.h"
 
 struct MPCSolution
 {
@@ -25,6 +26,20 @@ struct MPCSolution
     Eigen::Matrix<float, 12, 36> K;
 };
 
+inline void interpolateMPCSolution(const MPCSolution& s0, const MPCSolution& s1, float t_curr, MPCSolution& st)
+{
+    float dur = s1.time - s0.time;
+    st.time = s0.time + t_curr;
+
+    linearly_interpolate_matrices(s0.torque, s1.torque, dur, t_curr, st.torque);
+    linearly_interpolate_matrices(s0.pos, s1.pos, dur, t_curr, st.pos);
+    linearly_interpolate_matrices(s0.eul, s1.eul, dur, t_curr, st.eul);
+    linearly_interpolate_matrices(s0.vWorld, s1.vWorld, dur, t_curr, st.vWorld);
+    linearly_interpolate_matrices(s0.eulrate, s1.eulrate, dur, t_curr, st.eulrate);
+    linearly_interpolate_matrices(s0.qJ, s1.qJ, dur, t_curr, st.qJ);
+    linearly_interpolate_matrices(s0.qJd, s1.qJd, dur, t_curr, st.qJd);
+}
+
 class MHPC_LLController : public RobotController
 {
 public:
@@ -35,22 +50,22 @@ public:
     virtual ControlParameters *getUserControlParameters()
     {
         return &userParameters;
-    }
-
-    void update_mpc_if_needed();    
-    void retrive_closest_solution();
-    void update_contactEstimate();
+    }   
 
     void standup_ctrl();
     void standup_ctrl_enter();
     void standup_ctrl_run();
     void locomotion_ctrl();
+    void fixYawFlip();
    
+    void resolveMPCIfNeeded();    
+    void updateMPCCommand();
+    void updateContactEstimate();
+    void prepare_for_VWBC();
 
-    void handleMPCcommand(const lcm::ReceiveBuffer *rbuf, const std::string &chan,
+    void handleMPCCommand(const lcm::ReceiveBuffer *rbuf, const std::string &chan,
                           const MHPC_Command_lcmt *msg);
-    void handleMPCLCMthread();
-    void resolve_yaw_flip();
+    void handleMPCLCMthread();    
         
 protected:
     MHPCLLUserParameters userParameters;
@@ -75,6 +90,9 @@ public:
     Vec3<float> eul_des;
     Vec3<float> vWorld_des;
     Vec3<float> eulrate_des;
+    Vec12<float> qJdd_des;
+    Vec3<float> aWorld_des;
+    Vec3<float> euldd_des;
 
     // Swing Control
     bool firstStance[4];
@@ -94,6 +112,9 @@ public:
     std::mutex mpc_cmd_mutex;
     std::mutex mpc_data_mutex;
     std::thread mpcLCMthread;
+
+    // WBC
+    quadloco::VWBC wbc_;
 
 private:
     Vec24<float> mpc_control;

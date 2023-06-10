@@ -53,7 +53,7 @@ MHPC_LLController::MHPC_LLController() : mpc_cmds_lcm(getLcmUrl(255)), mpc_data_
 }
 void MHPC_LLController::initializeController()
 {
-    mpc_cmds_lcm.subscribe("MHPC_COMMAND", &MHPC_LLController::handleMPCcommand, this);
+    mpc_cmds_lcm.subscribe("MHPC_COMMAND", &MHPC_LLController::handleMPCCommand, this);
     mpcLCMthread = std::thread(&MHPC_LLController::handleMPCLCMthread, this);
     iter = 0;
     mpc_time = 0;
@@ -65,6 +65,11 @@ void MHPC_LLController::initializeController()
     raw_yaw_cur = _stateEstimate->rpy[2];
 }
 
+/*
+    @brief: 
+            A separate thread (from main thread) that keeps monitoring incoming LCM messages
+            To do that, LCM handle() is called in a while loop
+*/
 void MHPC_LLController::handleMPCLCMthread()
 {
     while (true)
@@ -73,9 +78,16 @@ void MHPC_LLController::handleMPCLCMthread()
     }
 }
 
-void MHPC_LLController::handleMPCcommand(const lcm::ReceiveBuffer *rbuf, const std::string &chan,
+/*
+    @breif:
+            This function is called each time a lcm message (MPCCommand) is received.
+            The data contained in the lcm message is copied to the mpc solution bag
+*/
+void MHPC_LLController::handleMPCCommand(const lcm::ReceiveBuffer *rbuf, const std::string &chan,
                                          const MHPC_Command_lcmt *msg)
 {
+    (void)(rbuf);
+    (void)(chan);
     printf(GRN);
     printf("Received a lcm mpc command message \n");
     printf(RESET);
@@ -96,8 +108,7 @@ void MHPC_LLController::handleMPCcommand(const lcm::ReceiveBuffer *rbuf, const s
         std::copy(msg->contacts[i], msg->contacts[i] + 4, mpc_sol_temp.contactStatus.data());
         std::copy(msg->statusTimes[i], msg->statusTimes[i] + 4, mpc_sol_temp.statusTimes.data());
         mpc_sol_temp.time = msg->mpc_times[i];
-
-        // Flip the joint order (Left and Right), and reverse hip and knee rotation direction
+        
         mpc_soluition_bag.push_back(mpc_sol_temp);
     }
     mpc_cmd_mutex.unlock();
@@ -106,7 +117,7 @@ void MHPC_LLController::runController()
 {
     iter++;
 
-    resolve_yaw_flip();
+    fixYawFlip();
 
     if (_controlParameters->use_rc > 0)
     {
@@ -135,7 +146,7 @@ void MHPC_LLController::runController()
         break;
     }
 
-    update_contactEstimate();
+    updateContactEstimate();
 }
 
 void MHPC_LLController::locomotion_ctrl()
@@ -143,36 +154,55 @@ void MHPC_LLController::locomotion_ctrl()
     Mat3<float> KpMat_joint = userParameters.Kp_joint.cast<float>().asDiagonal();
     Mat3<float> KdMat_joint = userParameters.Kd_joint.cast<float>().asDiagonal();
 
-    update_mpc_if_needed();
-
-    // get a value from the solution bag
-    retrive_closest_solution();
-
+    // Current state estimate
     const auto &se = _stateEstimator->getResult();
     Vec3<float> se_eul(se.rpy[2], se.rpy[1], se.rpy[0]);
+
+    resolveMPCIfNeeded();
+
+    // get a value from the solution bag
+    updateMPCCommand();   
 
     Eigen::Vector<float, 36> x;
     Eigen::Vector<float, 36> x_des;
     
-    x.head<12>() << se.position, se_eul, se.vWorld, omegaBodyToEulrate(se_eul, se.omegaBody);
-    x_des.head<12>() << pos_des, eul_des, vWorld_des, eulrate_des;
-    x_des.tail<24>() << qJ_des, qJd_des;
-    for (size_t leg = 0; leg < 4; leg++)
+    // If Ricatti-Gain feedback control (WBC==1) or Value-based whole-body control (WBC==2)
+    if ((int)userParameters.WBC >= 1)
     {
-        x.segment<3>(12 + 3*leg) = _legController->datas[leg].q;
-        x.segment<3>(24 + 3*leg) = _legController->datas[leg].qd;        
+        // update desired state
+        x_des.head<12>() << pos_des, eul_des, vWorld_des, eulrate_des;
+        x_des.tail<24>() << qJ_des, qJd_des;
+
+        // update state estimate
+        x.head<12>() << se.position, se_eul, se.vWorld, omegaBodyToEulrate(se_eul, se.omegaBody);
+        for (size_t leg = 0; leg < 4; leg++)
+        {
+            x.segment<3>(12 + 3*leg) = _legController->datas[leg].q;
+            x.segment<3>(24 + 3*leg) = _legController->datas[leg].qd;        
+        }
+    }   
+
+    Vec12<float> tau_ff(12);
+    tau_ff = tau_des;
+
+    // Ricatti-Gain feedback control
+    if ((int)userParameters.WBC == 1)
+    {
+        tau_ff -= (K_mpc * (x - x_des));
+    }
+
+    // Value-Based WBC 
+    if ((int)userParameters.WBC == 2)
+    {
+        // prepare for VWBC update
+
+        // update VWBC and solve WBQP
+        wbc_.updateContact(mpc_solution.contactStatus.data());
     }
     
     for (int leg(0); leg < 4; leg++)
-    {
-        Vec3<float> tau_ff = tau_des.segment<3>(3*leg);
-
-        if ((int)userParameters.WBC == 1)
-        {
-            tau_ff -= (K_mpc.middleRows<3>(3*leg) * (x - x_des));
-        }                
-
-        _legController->commands[leg].tauFeedForward = tau_ff;                
+    {              
+        _legController->commands[leg].tauFeedForward = tau_ff.segment<3>(3*leg);                
         _legController->commands[leg].qDes = qJ_des.segment<3>(3*leg);
         _legController->commands[leg].qdDes = qJd_des.segment<3>(3*leg);        
         _legController->commands[leg].kpJoint = KpMat_joint;
@@ -184,7 +214,7 @@ void MHPC_LLController::locomotion_ctrl()
     iter_between_mpc_update++;
 }
 
-void MHPC_LLController::update_mpc_if_needed()
+void MHPC_LLController::resolveMPCIfNeeded()
 {
     /* If haven't reached to the replanning time, skip */
     if (iter_between_mpc_update < nsteps_between_mpc_update)
@@ -225,7 +255,7 @@ void MHPC_LLController::update_mpc_if_needed()
     printf(RESET);
 }
 
-void MHPC_LLController::update_contactEstimate()
+void MHPC_LLController::updateContactEstimate()
 {
     for (int i = 0; i < 4; i++)
     {
@@ -260,7 +290,7 @@ void MHPC_LLController::update_contactEstimate()
     _stateEstimator->setContactPhase(stanceState);
 }
 
-void MHPC_LLController::resolve_yaw_flip()
+void MHPC_LLController::fixYawFlip()
 {
     raw_yaw_pre = raw_yaw_cur;
     raw_yaw_cur = _stateEstimate->rpy[2];
@@ -281,25 +311,41 @@ void MHPC_LLController::resolve_yaw_flip()
             This value is used for several control points the timestep between which is controller_dt
             Once dt_ddp is reached, the solution bag is popped in the front
 */
-void MHPC_LLController::retrive_closest_solution()
+void MHPC_LLController::updateMPCCommand()
 {
     mpc_cmd_mutex.lock();
     bool find_a_solution = false;
 
+    Vec12<float> qJd_des_next;
+    Vec3<float> vWorld_des_next;
+    Vec3<float> eulrate_des_next;
+
     for (int i = 0; i < mpc_soluition_bag.size() - 1; i++)
     {
-        if (approxGeq_number((float) mpc_time, mpc_soluition_bag[i].time) &&
-            mpc_time < mpc_soluition_bag[i + 1].time)
+        float start_time = mpc_soluition_bag[i].time;
+        float end_time = mpc_soluition_bag[i+1].time;
+        float dt_mpc = end_time - start_time;
+
+        if (approxGeq_number((float) mpc_time,start_time) &&
+            mpc_time < end_time)
         {
-            mpc_solution = mpc_soluition_bag[i];
-            find_a_solution = true;
+            const auto& mpc_sol_curr = mpc_soluition_bag[i];
+            const auto& mpc_sol_next = mpc_soluition_bag[i+1];
+            float t_rel = mpc_time - start_time;
+            
+            interpolateMPCSolution(mpc_sol_curr, mpc_sol_next, t_rel, mpc_solution);
+            float t_rel_n = t_rel + _controlParameters->controller_dt;
+
+            if (userParameters.WBC > 1.1)
+            {
+                linearly_interpolate_matrices(mpc_sol_curr.qJd, mpc_sol_next.qJd, dt_mpc, t_rel_n, qJd_des_next);            
+                linearly_interpolate_matrices(mpc_sol_curr.vWorld, mpc_sol_next.vWorld, dt_mpc, t_rel_n, vWorld_des_next);
+                linearly_interpolate_matrices(mpc_sol_curr.eulrate, mpc_sol_next.eulrate, dt_mpc, t_rel_n, eulrate_des_next);
+            }
+                        
             break;
         }
-    }
-    if (!find_a_solution)
-    {
-        mpc_solution = mpc_soluition_bag.back();
-    }
+    }   
 
     // Update the contact status and status durations (and flip the right and left legs order)
     contactStatus << mpc_solution.contactStatus[1], mpc_solution.contactStatus[0], mpc_solution.contactStatus[3], mpc_solution.contactStatus[2];
@@ -313,16 +359,7 @@ void MHPC_LLController::retrive_closest_solution()
         mpc_solution.qJ.tail<3>(), mpc_solution.qJ.segment<3>(6);
 
     qJd_des << mpc_solution.qJd.segment<3>(3), mpc_solution.qJd.head<3>(),
-        mpc_solution.qJd.tail<3>(), mpc_solution.qJd.segment<3>(6);
-
-    tau_des(Eigen::seqN(1, 4, 3)) = -tau_des(Eigen::seqN(1, 4, 3));
-    tau_des(Eigen::seqN(2, 4, 3)) = -tau_des(Eigen::seqN(2, 4, 3));
-
-    qJ_des(Eigen::seqN(1, 4, 3)) = -qJ_des(Eigen::seqN(1, 4, 3));
-    qJ_des(Eigen::seqN(2, 4, 3)) = -qJ_des(Eigen::seqN(2, 4, 3));
-
-    qJd_des(Eigen::seqN(1, 4, 3)) = -qJd_des(Eigen::seqN(1, 4, 3));
-    qJd_des(Eigen::seqN(2, 4, 3)) = -qJd_des(Eigen::seqN(2, 4, 3));
+        mpc_solution.qJd.tail<3>(), mpc_solution.qJd.segment<3>(6);        
 
     K_mpc.leftCols<12>() = mpc_solution.K.leftCols<12>();
     K_mpc.middleCols<3>(12) = mpc_solution.K.middleCols<3>(15);
@@ -334,6 +371,15 @@ void MHPC_LLController::retrive_closest_solution()
     K_mpc.middleCols<3>(30) = mpc_solution.K.middleCols<3>(33);
     K_mpc.middleCols<3>(33) = mpc_solution.K.middleCols<3>(30);
 
+    tau_des(Eigen::seqN(1, 4, 3)) *= -1;
+    tau_des(Eigen::seqN(2, 4, 3)) *= -1;
+
+    qJ_des(Eigen::seqN(1, 4, 3)) *= -1;
+    qJ_des(Eigen::seqN(2, 4, 3)) *= -1;
+
+    qJd_des(Eigen::seqN(1, 4, 3)) *= -1;
+    qJd_des(Eigen::seqN(2, 4, 3)) *= -1;       
+
     K_mpc(Eigen::all, Eigen::seqN(13, 4, 3)) *= -1;
     K_mpc(Eigen::all, Eigen::seqN(14, 4, 3)) *= -1;
 
@@ -344,6 +390,18 @@ void MHPC_LLController::retrive_closest_solution()
     vWorld_des = mpc_solution.vWorld;
 
     eulrate_des = mpc_solution.eulrate;
+
+    if (userParameters.WBC > 1.1)
+    {
+        Vec12<float>qJdd_des_temp = (qJd_des_next - qJd_des)/_controlParameters->controller_dt;
+        qJdd_des <<  qJdd_des_temp.segment<3>(3), qJdd_des_temp.head<3>(), qJdd_des_temp.tail<3>(), qJdd_des_temp.segment<3>(6);    
+        qJdd_des(Eigen::seqN(1, 4, 3)) *= -1;
+        qJdd_des(Eigen::seqN(2, 4, 3)) *= -1; 
+
+        aWorld_des = (vWorld_des_next - vWorld_des)/_controlParameters->controller_dt;
+        euldd_des = (eulrate_des_next - eulrate_des)/ _controlParameters->controller_dt;
+    }
+    
 
     mpc_cmd_mutex.unlock();
 }
