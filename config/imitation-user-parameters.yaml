@@ -2,7 +2,7 @@ __collection-name__: user-parameters
 
 Kp_jointPD:       [100, 50, 50]
 Kd_jointPD:       [2, 2, 2]
-angles_jointPD:   [0, -0.7874, 1.7537]
+angles_jointPD:   [0,-1.040, 2.220] #[0, -0.7874, 1.7537]
 
 Swing_Kp_cartesian : [700, 700, 100]
 Swing_Kd_cartesian : [7, 7, 7]
@@ -15,5 +15,5 @@ max_loco_time      : 4.5
 max_settling_time  : 3.0
 ext_force_start_time  : 1.75
 ext_force_number    : 1
-ext_force_mag         : 0.4
+ext_force_mag         : 0.0
 MSDDP                 : 1

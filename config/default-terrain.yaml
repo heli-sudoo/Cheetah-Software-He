@@ -30,28 +30,49 @@ ground-plane:
     #heightmap_file_name: "../optimization/optimization_data/2019-03-05-00_00_03/heightmap.txt"
     heightmap_file_name: "../algorithms/optimization/saved_optimization_data/2019-03-05-00_00_03_2/HeightMap.txt"
 
-#box-1:
+box-1:
     type: "box"
     mu: 0.7
     restitution: 0
-    depth: 2.0
-    width: 1.5
-    height: .3
-    position:  [1.5, 0, 0.23]
+    depth: 0.5401
+    width: 0.5401
+    height: 0.0001
+    position:  [0.0, 0, 0.0]
     orientation: [0,.0,0]  # roll pitch yaw
     transparent: 1
 
-#box-2:
-    #type: "box"
-    #mu: 0.7
-    #restitution: 0
-    #depth: 0.45
-    #width: 0.6
-    #height: .1
-    #position:  [1.175, 0, -0.48]
-    #orientation: [0,.0,0]  # roll pitch yaw
-    #transparent: 1
+# obstacle-1:
+#     type: "box"
+#     mu: 0.7
+#     restitution: 0
+#     depth: 0.01
+#     width: 0.5401
+#     height: 0.2
+#     position:  [0.32, 0, 0.0]
+#     orientation: [0,.0,0]  # roll pitch yaw
+#     transparent: 1
 
+box-2:
+    type: "box"
+    mu: 0.7
+    restitution: 0
+    depth: 0.5401
+    width: 0.5401
+    height: 0.0001
+    position:  [0.64, 0, 0.0]
+    orientation: [0,.0,0]  # roll pitch yaw
+    transparent: 1
+
+box-3:
+    type: "box"
+    mu: 0.7
+    restitution: 0
+    depth: 0.5401
+    width: 0.5401
+    height: 0.0001
+    position:  [1.28, 0, 0.0]
+    orientation: [0,.0,0]  # roll pitch yaw
+    transparent: 1
     
 #stairs-1:
     type: "stairs"

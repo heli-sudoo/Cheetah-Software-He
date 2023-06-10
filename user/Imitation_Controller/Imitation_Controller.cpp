@@ -131,6 +131,12 @@ void Imitation_Controller::handleMPCcommand(const lcm::ReceiveBuffer *rbuf, cons
         pf[l][1] = mpc_cmds.foot_placement[3 * l + 1];
         pf[l][2] = mpc_cmds.foot_placement[3 * l + 2];
     }
+    // update desired joint angles
+    for (int l = 0; l < 4; l++){
+        qJ_des[l][0] = mpc_cmds.qJ_ref[3 * l];
+        qJ_des[l][1] = mpc_cmds.qJ_ref[3 * l + 1];
+        qJ_des[l][2] = mpc_cmds.qJ_ref[3 * l + 2];
+    }
     mpc_cmd_mutex.unlock();
 }
 void Imitation_Controller::runController()
@@ -259,7 +265,7 @@ void Imitation_Controller::locomotion_ctrl()
 
     Kp_swing = userParameters.Swing_Kp_cartesian.cast<float>().asDiagonal();
     Kd_swing = userParameters.Swing_Kd_cartesian.cast<float>().asDiagonal();
-    Kp_stance = 0 * Kp_swing;
+    Kp_stance = 0*Kp_swing;
     Kd_stance = Kd_swing;
 
     const auto &seResult = _stateEstimator->getResult();
@@ -278,6 +284,8 @@ void Imitation_Controller::locomotion_ctrl()
 
     // do some first-time initilization
     float h = userParameters.Swing_height;
+    float hop_time = 1.2;
+    if (mpc_time < hop_time) h = 0.2;
     if (firstRun)
     {
         for (int i = 0; i < 4; i++)
@@ -349,8 +357,13 @@ void Imitation_Controller::locomotion_ctrl()
             firstStance[i] = true;
             stanceState[i] = 0;
 
-            // don't change too fast in joing space
+            // don't change too fast in joint space
             _legController->commands[i].kdJoint = Vec3<float>(.1, .1, .1).asDiagonal();
+            // joint PD
+            _legController->commands[i].kpJoint = Vec3<float>(0.0, 0.0, 0.0).asDiagonal();
+            for (int j = 0; j < 3; j++){
+                _legController->commands[i].qDes[j] = qJ_des[i][j];
+            }
         }
         // else in stance
         else
@@ -370,7 +383,14 @@ void Imitation_Controller::locomotion_ctrl()
             _legController->commands[i].kdCartesian = Kd_stance;
 
             _legController->commands[i].forceFeedForward = f_ff[i];
-            _legController->commands[i].kdJoint = Mat3<float>::Identity() * .1;
+
+            // joint PD
+            _legController->commands[i].kpJoint = Mat3<float>::Identity() * 1.0;
+            _legController->commands[i].kdJoint = Mat3<float>::Identity() * .01;
+            for (int j = 0; j < 3; j++){
+                _legController->commands[i].qDes[j] = qJ_des[i][j];
+            }
+
             // seed state estimate
             if (firstStance[i])
             {
