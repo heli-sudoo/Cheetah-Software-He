@@ -59,7 +59,7 @@ box-2:
     depth: 0.5401
     width: 0.5401
     height: 0.0001
-    position:  [0.64, 0, 0.0]
+    position:  [0.64, 0, 0.0] #.1]
     orientation: [0,.0,0]  # roll pitch yaw
     transparent: 1
 

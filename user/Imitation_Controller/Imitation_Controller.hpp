@@ -58,6 +58,7 @@ protected:
 public:
     // MPC
     deque<Vec24<float>> mpc_control_bag;
+    deque<Vec24<float>> joint_control_bag; // [qJ_des;qJd_des]
     double mpc_time;
     int iter;
     int iter_loco;
@@ -93,6 +94,7 @@ public:
     Mat3<float> Kp_stance;
     Mat3<float> Kd_stance;
     Vec3<float> qJ_des[4];
+    Vec3<float> qJd_des[4];
 
     // foot location filter
     deque<Vec3<float>> pf_filter_buffer[4]; // buffer storing re-optimized foot locations

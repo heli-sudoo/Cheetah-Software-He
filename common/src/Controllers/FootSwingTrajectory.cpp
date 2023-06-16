@@ -36,5 +36,34 @@ void FootSwingTrajectory<T>::computeSwingTrajectoryBezier(T phase, T swingTime) 
   _a[2] = za;
 }
 
+/*!
+ * Compute foot swing trajectory with a bezier curve
+ * @param phase : How far along we are in the swing (0 to 1)
+ * @param swingTime : How long the swing should take (seconds)
+ * @param vertex : How far along the swing the maximum height should be (0 to 1)
+ */
+template <typename T>
+void FootSwingTrajectory<T>::computeSwingTrajectoryBezier(T phase, T swingTime, T vertex) {
+  _p = Interpolate::cubicBezier<Vec3<T>>(_p0, _pf, phase);
+  _v = Interpolate::cubicBezierFirstDerivative<Vec3<T>>(_p0, _pf, phase) / swingTime;
+  _a = Interpolate::cubicBezierSecondDerivative<Vec3<T>>(_p0, _pf, phase) / (swingTime * swingTime);
+
+  T zp, zv, za;
+
+  if(phase < T(vertex)) {
+    zp = Interpolate::cubicBezier<T>(_p0[2], _p0[2] + _height, phase / T(vertex));
+    zv = Interpolate::cubicBezierFirstDerivative<T>(_p0[2], _p0[2] + _height, phase / T(vertex)) / T(vertex) / swingTime;
+    za = Interpolate::cubicBezierSecondDerivative<T>(_p0[2], _p0[2] + _height, phase / T(vertex)) / (T(vertex)*T(vertex)) / (swingTime * swingTime);
+  } else {
+    zp = Interpolate::cubicBezier<T>(_p0[2] + _height, _pf[2], (phase-T(vertex)) / (1-T(vertex)));
+    zv = Interpolate::cubicBezierFirstDerivative<T>(_p0[2] + _height, _pf[2], (phase-T(vertex)) / (1-T(vertex))) / (1-T(vertex)) / swingTime;
+    za = Interpolate::cubicBezierSecondDerivative<T>(_p0[2] + _height, _pf[2], (phase-T(vertex)) / (1-T(vertex))) / ((1-T(vertex))*(1-T(vertex))) / (swingTime * swingTime);
+  }
+
+  _p[2] = zp;
+  _v[2] = zv;
+  _a[2] = za;
+}
+
 template class FootSwingTrajectory<double>;
 template class FootSwingTrajectory<float>;

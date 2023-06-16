@@ -131,12 +131,28 @@ void Imitation_Controller::handleMPCcommand(const lcm::ReceiveBuffer *rbuf, cons
         pf[l][1] = mpc_cmds.foot_placement[3 * l + 1];
         pf[l][2] = mpc_cmds.foot_placement[3 * l + 2];
     }
-    // update desired joint angles
-    for (int l = 0; l < 4; l++){
-        qJ_des[l][0] = mpc_cmds.qJ_ref[3 * l];
-        qJ_des[l][1] = mpc_cmds.qJ_ref[3 * l + 1];
-        qJ_des[l][2] = mpc_cmds.qJ_ref[3 * l + 2];
+    // update desired joint angles and velocities
+    joint_control_bag.clear();
+    for (int i = 0; i < mpc_cmds.N_mpcsteps; i++){
+        Vec24<float> qJbar;
+        for (int j = 0; j < 12; j++){
+            qJbar[j] = mpc_cmds.qJ_ref[i][j];
+            qJbar[j+12] = mpc_cmds.qJd_ref[i][j];
+        }
+        joint_control_bag.push_back(qJbar);
     }
+    // for (int l = 0; l < 4; l++){
+        
+
+
+    //     qJ_des[l][0] = mpc_cmds.qJ_ref[3 * l];
+    //     qJ_des[l][1] = mpc_cmds.qJ_ref[3 * l + 1];
+    //     qJ_des[l][2] = mpc_cmds.qJ_ref[3 * l + 2];
+
+    //     qJd_des[l][0] = mpc_cmds.qJd_ref[3 * l];
+    //     qJd_des[l][1] = mpc_cmds.qJd_ref[3 * l + 1];
+    //     qJd_des[l][2] = mpc_cmds.qJd_ref[3 * l + 2];
+    // }
     mpc_cmd_mutex.unlock();
 }
 void Imitation_Controller::runController()
@@ -284,8 +300,21 @@ void Imitation_Controller::locomotion_ctrl()
 
     // do some first-time initilization
     float h = userParameters.Swing_height;
-    float hop_time = 1.2;
-    if (mpc_time < hop_time) h = 0.2;
+    float swing_vertex = 0.5;
+    float hop_time = 0.7; //1.2;
+    if (mpc_time < hop_time){
+        h = 0.25;
+        // h = 0.45;
+        // swing_vertex = 0.25;
+        // if (mpc_time < 0.7){
+        //     h = 0.45;
+        //     swing_vertex = 0.3;
+        // }
+        // else{
+        //     h = 0.2;
+        //     swing_vertex = 0.7;
+        // }
+    }
     if (firstRun)
     {
         for (int i = 0; i < 4; i++)
@@ -340,10 +369,13 @@ void Imitation_Controller::locomotion_ctrl()
                 pf_filtered[i] += pf_filter_buffer[i][j];
             }
             pf_filtered[i] = pf_filtered[i] / pf_filter_buffer[i].size();
+            /////////////////////hack/////////////////////
+            // pf_filtered[i][0] = pf_filtered[i][0] + 0.05;
+            //////////////////////////////////////////////
             footSwingTrajectories[i].setFinalPosition(pf_filtered[i]);
 
             swingState[i] = (swingTimes[i] - swingTimesRemain[i]) / swingTimes[i];               // where are we in swing
-            footSwingTrajectories[i].computeSwingTrajectoryBezier(swingState[i], swingTimes[i]); // compute swing foot trajectory
+            footSwingTrajectories[i].computeSwingTrajectoryBezier(swingState[i], swingTimes[i], swing_vertex); // compute swing foot trajectory
             Vec3<float> pDesFootWorld = footSwingTrajectories[i].getPosition();
             Vec3<float> vDesFootWorld = footSwingTrajectories[i].getVelocity();
             Vec3<float> pDesLeg = seResult.rBody * (pDesFootWorld - seResult.position) - _quadruped->getHipLocation(i);
@@ -359,10 +391,11 @@ void Imitation_Controller::locomotion_ctrl()
 
             // don't change too fast in joint space
             _legController->commands[i].kdJoint = Vec3<float>(.1, .1, .1).asDiagonal();
-            // joint PD
+            // no joint tracking during flight
             _legController->commands[i].kpJoint = Vec3<float>(0.0, 0.0, 0.0).asDiagonal();
             for (int j = 0; j < 3; j++){
-                _legController->commands[i].qDes[j] = qJ_des[i][j];
+                _legController->commands[i].qDes[j] = 0*qJ_des[i][j];
+                _legController->commands[i].qdDes[j] = 0*qJd_des[i][j];
             }
         }
         // else in stance
@@ -386,9 +419,10 @@ void Imitation_Controller::locomotion_ctrl()
 
             // joint PD
             _legController->commands[i].kpJoint = Mat3<float>::Identity() * 1.0;
-            _legController->commands[i].kdJoint = Mat3<float>::Identity() * .01;
+            _legController->commands[i].kdJoint = Mat3<float>::Identity() * .1;
             for (int j = 0; j < 3; j++){
                 _legController->commands[i].qDes[j] = qJ_des[i][j];
+                _legController->commands[i].qdDes[j] = qJd_des[i][j];
             }
 
             // seed state estimate
@@ -582,6 +616,15 @@ void Imitation_Controller::get_a_val_from_solution_bag()
             if (mpc_time < mpc_cmds.mpc_times[i + 1])
             {
                 mpc_control = mpc_control_bag[i];
+                for (int l = 0; l < 4; l++){
+                    qJ_des[l][0] = joint_control_bag[i][l*3];
+                    qJ_des[l][1] = joint_control_bag[i][l*3+1];
+                    qJ_des[l][2] = joint_control_bag[i][l*3+2];
+
+                    qJd_des[l][0] = joint_control_bag[i][l*3+12];
+                    qJd_des[l][1] = joint_control_bag[i][l*3+13];
+                    qJd_des[l][2] = joint_control_bag[i][l*3+14];
+                }
                 break;
             }
         }
