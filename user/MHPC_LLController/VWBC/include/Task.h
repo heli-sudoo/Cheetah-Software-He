@@ -11,10 +11,9 @@
 
 namespace quadloco
 {
-    
-    typedef DMat<double> matrix_t;
-    typedef DVec<double> vector_t;
     typedef double scalar_t;    
+    typedef DMat<scalar_t> matrix_t;
+    typedef DVec<scalar_t> vector_t;
     
     inline vector_t concatenateVectors(const vector_t &v1, const vector_t &v2)
     {       
@@ -46,9 +45,12 @@ namespace quadloco
             return {vstackMatrices(A_, rhs.A_), concatenateVectors(lb_A_, rhs.lb_A_), concatenateVectors(ub_A_, rhs.ub_A_)};
         }
 
-        Constraint operator+=(const Constraint &rhs)
+        Constraint& operator+=(const Constraint &rhs)
         {
-            return *this+rhs;
+            this->A_ = vstackMatrices(this->A_, rhs.A_);
+            this->lb_A_ = concatenateVectors(this->lb_A_, rhs.lb_A_);
+            this->ub_A_ = concatenateVectors(this->ub_A_, rhs.ub_A_);
+            return *this;
         }
 
         Constraint operator*(scalar_t s) const
