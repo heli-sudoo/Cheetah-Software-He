@@ -104,6 +104,10 @@ void MHPC_LLController::handleMPCCommand(const lcm::ReceiveBuffer *rbuf, const s
         std::copy(msg->eulrate[i], msg->eulrate[i] + 3, mpc_sol_temp.eulrate.data());
         std::copy(msg->qJ[i], msg->qJ[i] + 12, mpc_sol_temp.qJ.data());
         std::copy(msg->qJd[i], msg->qJd[i] + 12, mpc_sol_temp.qJd.data());
+        std::copy(msg->GRF[i], msg->GRF[i]+12, mpc_sol_temp.GRF.data());
+        std::copy(msg->Qu[i], msg->Qu[i]+12, mpc_sol_temp.Qu.data());
+        std::copy(msg->Quu[i], msg->Quu[i]+144, mpc_sol_temp.Quu.data());
+        std::copy(msg->Qux[i], msg->Qux[i]+432, mpc_sol_temp.Qux.data());
         std::copy(msg->feedback[i], msg->feedback[i]+432, mpc_sol_temp.K.data());
         std::copy(msg->contacts[i], msg->contacts[i] + 4, mpc_sol_temp.contactStatus.data());
         std::copy(msg->statusTimes[i], msg->statusTimes[i] + 4, mpc_sol_temp.statusTimes.data());
@@ -144,71 +148,80 @@ void MHPC_LLController::runController()
         break;
     default:
         break;
-    }
-
-    updateContactEstimate();
+    }    
 }
+
+static int LegIDMap[] = {1,0,3,2};
 
 void MHPC_LLController::locomotion_ctrl()
 {
     Mat3<float> KpMat_joint = userParameters.Kp_joint.cast<float>().asDiagonal();
     Mat3<float> KdMat_joint = userParameters.Kd_joint.cast<float>().asDiagonal();
-
-    // Current state estimate
-    const auto &se = _stateEstimator->getResult();
-    Vec3<float> se_eul(se.rpy[2], se.rpy[1], se.rpy[0]);
-
-    resolveMPCIfNeeded();
-
-    // get a value from the solution bag
-    updateMPCCommand();   
-
-    Eigen::Vector<float, 36> x;
-    Eigen::Vector<float, 36> x_des;
     
-    // If Ricatti-Gain feedback control (WBC==1) or Value-based whole-body control (WBC==2)
-    if ((int)userParameters.WBC >= 1)
-    {
-        // update desired state
-        x_des.head<12>() << pos_des, eul_des, vWorld_des, eulrate_des;
-        x_des.tail<24>() << qJ_des, qJd_des;
+    updateStateEstimate();        
+    
+    resolveMPCIfNeeded();
+   
+    updateMPCCommand();       
 
-        // update state estimate
-        x.head<12>() << se.position, se_eul, se.vWorld, omegaBodyToEulrate(se_eul, se.omegaBody);
-        for (size_t leg = 0; leg < 4; leg++)
-        {
-            x.segment<3>(12 + 3*leg) = _legController->datas[leg].q;
-            x.segment<3>(24 + 3*leg) = _legController->datas[leg].qd;        
-        }
-    }   
+    updateContactEstimate();
 
     Vec12<float> tau_ff(12);
-    tau_ff = tau_des;
+    tau_ff = mpc_solution.torque;
 
     // Ricatti-Gain feedback control
     if ((int)userParameters.WBC == 1)
-    {
-        tau_ff -= (K_mpc * (x - x_des));
+    {        
+        const auto& K_mpc = mpc_solution.K;
+        tau_ff += K_mpc * (x_se - x_des);
     }
 
     // Value-Based WBC 
     if ((int)userParameters.WBC == 2)
     {
-        // prepare for VWBC update
-
-        // update VWBC and solve WBQP
+        // update the contact status of VWBC
         wbc_.updateContact(mpc_solution.contactStatus.data());
-    }
+
+        // prepare Q-value function for VWBC update
+        Qu_mpc = mpc_solution.Qu;
+        Quu_mpc = mpc_solution.Quu;
+        Qu_mpc -= Quu_mpc * tau_ff;
+        Qu_mpc += mpc_solution.Qux.rightCols(33)*(x_se - x_des).tail(33);
+
+        // prepare other information for VWBC update
+        Vec18<float> qMeas = x_se.head<18>();            // measured generalized joint
+        Vec18<float> vMeas = x_se.tail<18>();            // measured generalized vel
+        Vec18<float> qDes, vDes, qddDes;
+        qDes << mpc_solution.pos, mpc_solution.eul, qJ_des;
+        vDes << mpc_solution.vWorld, mpc_solution.eulrate, qJd_des;       
+
+        // update the VWBC problem
+        wbc_.updateProblem(qMeas.cast<double>(), vMeas.cast<double>(), 
+                           qDes.cast<double>(), vDes.cast<double>(), tau_ff.cast<double>(),           
+                           Qu_mpc.cast<double>(), Quu_mpc.cast<double>());
+
+        // solve the VWBC problem
+        wbc_.solveProblem();
+
+        // get a solution
+        wbc_.getSolution(tau_ff, qddDes);
+
+        // qJd_des += qddDes.tail<12>()* _controlParameters->controller_dt;
+    }        
     
     for (int leg(0); leg < 4; leg++)
     {              
-        _legController->commands[leg].tauFeedForward = tau_ff.segment<3>(3*leg);                
-        _legController->commands[leg].qDes = qJ_des.segment<3>(3*leg);
-        _legController->commands[leg].qdDes = qJd_des.segment<3>(3*leg);        
+        const auto& tau_ff_leg = tau_ff.segment<3>(3*LegIDMap[leg]);
+        const auto& qDes_leg = qJ_des.segment<3>(3*LegIDMap[leg]);
+        const auto& qdDes_leg = qJd_des.segment<3>(3*LegIDMap[leg]);        
+
+        _legController->commands[leg].tauFeedForward << tau_ff_leg[0], -tau_ff_leg.tail<2>();
+        _legController->commands[leg].qDes << qDes_leg[0], -qDes_leg.tail<2>();
+        _legController->commands[leg].qdDes << qdDes_leg[0], -qdDes_leg.tail<2>();
         _legController->commands[leg].kpJoint = KpMat_joint;
         _legController->commands[leg].kdJoint = KdMat_joint;
     }
-
+    
     iter_loco++;
     mpc_time = iter_loco * _controlParameters->controller_dt; // where we are since MPC starts
     iter_between_mpc_update++;
@@ -225,34 +238,39 @@ void MHPC_LLController::resolveMPCIfNeeded()
 
     
     const auto &se = _stateEstimator->getResult();
-
-    Vec3<float> se_eul(se.rpy[2], se.rpy[1], se.rpy[0]);
     
     std::copy(se.position.begin(), se.position.end(), mpc_data.pos);
-    std::copy(se_eul.begin(), se_eul.end(), mpc_data.eul);
+    std::copy(eul_se.begin(), eul_se.end(), mpc_data.eul);
     std::copy(se.vWorld.begin(), se.vWorld.end(), mpc_data.vWorld);
-    Eigen::Map<Vec3<float>> se_eulrate(mpc_data.eulrate);
-    se_eulrate = omegaBodyToEulrate(se_eul, se.omegaBody);
-    Vec12<float> qJ, qJd;
-    const auto legdatas = _legController->datas;
+    std::copy(eulrate_se.begin(), eulrate_se.end(), mpc_data.eulrate);    
 
-    qJ << legdatas[1].q, legdatas[0].q, legdatas[3].q, legdatas[2].q;
-    qJd << legdatas[1].qd, legdatas[0].qd, legdatas[3].qd, legdatas[2].qd;
-
-    qJ(Eigen::seqN(1, 4, 3)) = -qJ(Eigen::seqN(1, 4, 3));
-    qJ(Eigen::seqN(2, 4, 3)) = -qJ(Eigen::seqN(2, 4, 3));
-
-    qJd(Eigen::seqN(1, 4, 3)) = -qJd(Eigen::seqN(1, 4, 3));
-    qJd(Eigen::seqN(2, 4, 3)) = -qJd(Eigen::seqN(2, 4, 3));
-
-    std::copy(qJ.begin(), qJ.end(), mpc_data.qJ);
-    std::copy(qJd.begin(), qJd.end(), mpc_data.qJd);
+    std::copy(qJ_se.begin(), qJ_se.end(), mpc_data.qJ);
+    std::copy(qJd_se.begin(), qJd_se.end(), mpc_data.qJd);
 
     mpc_data.mpctime = mpc_time;
     mpc_data_lcm.publish("MHPC_DATA", &mpc_data);
     printf(YEL);
     printf("sending a request for updating mpc\n");
     printf(RESET);
+}
+
+void MHPC_LLController::updateStateEstimate()
+{
+    const auto &se = _stateEstimator->getResult();
+    eul_se << se.rpy[2], se.rpy[1], se.rpy[0];
+    eulrate_se = omegaBodyToEulrate(eul_se, se.omegaBody);
+
+    const auto& legdatas = _legController->datas;
+    qJ_se << legdatas[1].q, legdatas[0].q, legdatas[3].q, legdatas[2].q;
+    qJd_se << legdatas[1].qd, legdatas[0].qd, legdatas[3].qd, legdatas[2].qd;
+
+    qJ_se(Eigen::seqN(1, 4, 3)) *= -1;
+    qJ_se(Eigen::seqN(2, 4, 3)) *= -1;
+
+    qJd_se(Eigen::seqN(1, 4, 3)) *= -1;
+    qJd_se(Eigen::seqN(2, 4, 3)) *= -1;
+
+    x_se << se.position, eul_se, qJ_se, se.vWorld, eulrate_se, qJd_se;
 }
 
 void MHPC_LLController::updateContactEstimate()
@@ -290,6 +308,8 @@ void MHPC_LLController::updateContactEstimate()
     _stateEstimator->setContactPhase(stanceState);
 }
 
+
+
 void MHPC_LLController::fixYawFlip()
 {
     raw_yaw_pre = raw_yaw_cur;
@@ -315,10 +335,7 @@ void MHPC_LLController::updateMPCCommand()
 {
     mpc_cmd_mutex.lock();
     bool find_a_solution = false;
-
-    Vec12<float> qJd_des_next;
-    Vec3<float> vWorld_des_next;
-    Vec3<float> eulrate_des_next;
+ 
 
     for (int i = 0; i < mpc_soluition_bag.size() - 1; i++)
     {
@@ -333,16 +350,8 @@ void MHPC_LLController::updateMPCCommand()
             const auto& mpc_sol_next = mpc_soluition_bag[i+1];
             float t_rel = mpc_time - start_time;
             
-            interpolateMPCSolution(mpc_sol_curr, mpc_sol_next, t_rel, mpc_solution);
-            float t_rel_n = t_rel + _controlParameters->controller_dt;
-
-            if (userParameters.WBC > 1.1)
-            {
-                linearly_interpolate_matrices(mpc_sol_curr.qJd, mpc_sol_next.qJd, dt_mpc, t_rel_n, qJd_des_next);            
-                linearly_interpolate_matrices(mpc_sol_curr.vWorld, mpc_sol_next.vWorld, dt_mpc, t_rel_n, vWorld_des_next);
-                linearly_interpolate_matrices(mpc_sol_curr.eulrate, mpc_sol_next.eulrate, dt_mpc, t_rel_n, eulrate_des_next);
-            }
-                        
+            mpc_solution = mpc_sol_curr;
+            interpolateMPCSolution(mpc_sol_curr, mpc_sol_next, t_rel, mpc_solution);                                       
             break;
         }
     }   
@@ -351,58 +360,15 @@ void MHPC_LLController::updateMPCCommand()
     contactStatus << mpc_solution.contactStatus[1], mpc_solution.contactStatus[0], mpc_solution.contactStatus[3], mpc_solution.contactStatus[2];
     statusTimes << mpc_solution.statusTimes[1], mpc_solution.statusTimes[0], mpc_solution.statusTimes[3], mpc_solution.statusTimes[2];
 
-    // Update desired torque, body state, joint angles etc
-    tau_des << mpc_solution.torque.segment<3>(3), mpc_solution.torque.head<3>(),
-        mpc_solution.torque.tail<3>(), mpc_solution.torque.segment<3>(6);
+    const auto& pos_des = mpc_solution.pos;
+    const auto& eul_des = mpc_solution.eul;
+    const auto& vWorld_des = mpc_solution.vWorld;
+    const auto& eulrate_des = mpc_solution.eulrate;
+    qJ_des = mpc_solution.qJ;
+    qJd_des = mpc_solution.qJd;        
 
-    qJ_des << mpc_solution.qJ.segment<3>(3), mpc_solution.qJ.head<3>(),
-        mpc_solution.qJ.tail<3>(), mpc_solution.qJ.segment<3>(6);
-
-    qJd_des << mpc_solution.qJd.segment<3>(3), mpc_solution.qJd.head<3>(),
-        mpc_solution.qJd.tail<3>(), mpc_solution.qJd.segment<3>(6);        
-
-    K_mpc.leftCols<12>() = mpc_solution.K.leftCols<12>();
-    K_mpc.middleCols<3>(12) = mpc_solution.K.middleCols<3>(15);
-    K_mpc.middleCols<3>(15) = mpc_solution.K.middleCols<3>(12);
-    K_mpc.middleCols<3>(18) = mpc_solution.K.middleCols<3>(21);
-    K_mpc.middleCols<3>(21) = mpc_solution.K.middleCols<3>(18);
-    K_mpc.middleCols<3>(24) = mpc_solution.K.middleCols<3>(27);
-    K_mpc.middleCols<3>(27) = mpc_solution.K.middleCols<3>(24);
-    K_mpc.middleCols<3>(30) = mpc_solution.K.middleCols<3>(33);
-    K_mpc.middleCols<3>(33) = mpc_solution.K.middleCols<3>(30);
-
-    tau_des(Eigen::seqN(1, 4, 3)) *= -1;
-    tau_des(Eigen::seqN(2, 4, 3)) *= -1;
-
-    qJ_des(Eigen::seqN(1, 4, 3)) *= -1;
-    qJ_des(Eigen::seqN(2, 4, 3)) *= -1;
-
-    qJd_des(Eigen::seqN(1, 4, 3)) *= -1;
-    qJd_des(Eigen::seqN(2, 4, 3)) *= -1;       
-
-    K_mpc(Eigen::all, Eigen::seqN(13, 4, 3)) *= -1;
-    K_mpc(Eigen::all, Eigen::seqN(14, 4, 3)) *= -1;
-
-    pos_des = mpc_solution.pos;
-
-    eul_des = mpc_solution.eul;
-
-    vWorld_des = mpc_solution.vWorld;
-
-    eulrate_des = mpc_solution.eulrate;
-
-    if (userParameters.WBC > 1.1)
-    {
-        Vec12<float>qJdd_des_temp = (qJd_des_next - qJd_des)/_controlParameters->controller_dt;
-        qJdd_des <<  qJdd_des_temp.segment<3>(3), qJdd_des_temp.head<3>(), qJdd_des_temp.tail<3>(), qJdd_des_temp.segment<3>(6);    
-        qJdd_des(Eigen::seqN(1, 4, 3)) *= -1;
-        qJdd_des(Eigen::seqN(2, 4, 3)) *= -1; 
-
-        aWorld_des = (vWorld_des_next - vWorld_des)/_controlParameters->controller_dt;
-        euldd_des = (eulrate_des_next - eulrate_des)/ _controlParameters->controller_dt;
-    }
+    x_des << pos_des, eul_des, qJ_des, vWorld_des, eulrate_des, qJd_des;             
     
-
     mpc_cmd_mutex.unlock();
 }
 
