@@ -8,7 +8,11 @@ struct MHPC_Command_lcmt {
     float vWorld[4][3];
     float eulrate[4][3];        
     float qJd[4][12];
+    float GRF[4][12];
     float feedback[4][432];
+    float Qu[4][12];
+    float Quu[4][144];
+    float Qux[4][432];
     int32_t contacts[4][4];
     float statusTimes[4][4];          
     float solve_time;
