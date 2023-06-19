@@ -8,11 +8,8 @@ rm -rf robot-software
 mkdir robot-software
 mkdir robot-software/build
 mkdir robot-software/user
-mkdir robot-software/user/Imitation_Controller
-mkdir robot-software/user/Imitation_Controller/PolicyRollout
 #cp common/test-common robot-software/build
 cp $1 robot-software/build
-cp ../user/Imitation_Controller/PolicyRollout/*.csv robot-software/user/Imitation_Controller/PolicyRollout
 find . -name \*.so* -exec cp {} ./robot-software/build \;
 cp ../scripts/run_mc* ./robot-software/build
 cp ../scripts/setup_network_mc.py ./robot-software/build
