@@ -1,6 +1,6 @@
 
 find_package(pinocchio REQUIRED)
-
+find_package(Boost REQUIRED)
 find_library(QPOASES_LIB 
              NAMES  libqpOASES.a 
              PATHS $ENV{QPOASES_LIB_PATH})
