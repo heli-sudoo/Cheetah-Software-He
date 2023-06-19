@@ -1,0 +1,13 @@
+vwbc
+{
+    torqueLimits    15.0
+    frictionCoeff   0.6
+    BGalpha         10.0
+    weightBody      0.1
+    weightSwing     0.1
+    weightStance    0.001
+    weightTorque    1.0
+    weightGRF       0.001
+    P_gain          3
+    D_gain          0.5
+}
