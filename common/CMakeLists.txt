@@ -16,6 +16,11 @@ file(GLOB_RECURSE sources "src/*.cpp")                   # common library cpp fi
 add_library(biomimetics SHARED ${sources})       # produce a library used by sim/robot
 target_link_libraries(biomimetics inih dynacore_param_handler JCQP osqp)
 
+if((MINI_CHEETAH_BUILD))
+    target_compile_definitions(biomimetics PUBLIC MINI_CHEETAH_BUILD)
+endif((MINI_CHEETAH_BUILD))
+
+
 # if(CMAKE_SYSTEM_NAME MATCHES Linux)
 # # Pull in Google Test
 # include(CTest)
