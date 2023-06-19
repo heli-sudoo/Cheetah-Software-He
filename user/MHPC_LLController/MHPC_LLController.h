@@ -13,6 +13,8 @@
 
 struct MPCSolution
 {
+    // Leg order and Joint convention follow the Pinocchio's parsing of MC URDF file
+    // i.e., [FR, FL, HR, HL], hip and knee have reversed rotations compared to Cheetah Software
     float time;
     Vec12<float> torque;
     Vec3<float> pos;
@@ -21,9 +23,14 @@ struct MPCSolution
     Vec3<float> eulrate;
     Vec12<float> qJ;
     Vec12<float> qJd;
+    Vec12<float> GRF;
     Vec4<int> contactStatus;
     Vec4<float> statusTimes;
     Eigen::Matrix<float, 12, 36> K;
+
+    Vec12<float> Qu;
+    Mat12<float> Quu;
+    Eigen::Matrix<float, 12, 36> Qux;
 };
 
 inline void interpolateMPCSolution(const MPCSolution& s0, const MPCSolution& s1, float t_curr, MPCSolution& st)
@@ -38,6 +45,9 @@ inline void interpolateMPCSolution(const MPCSolution& s0, const MPCSolution& s1,
     linearly_interpolate_matrices(s0.eulrate, s1.eulrate, dur, t_curr, st.eulrate);
     linearly_interpolate_matrices(s0.qJ, s1.qJ, dur, t_curr, st.qJ);
     linearly_interpolate_matrices(s0.qJd, s1.qJd, dur, t_curr, st.qJd);
+    linearly_interpolate_matrices(s0.Qu, s1.Qu, dur, t_curr, st.Qu);
+    linearly_interpolate_matrices(s0.Quu, s1.Quu, dur, t_curr, st.Quu);
+    linearly_interpolate_matrices(s0.Qux, s1.Qux, dur, t_curr, st.Qux);
 }
 
 class MHPC_LLController : public RobotController
@@ -59,6 +69,7 @@ public:
     void fixYawFlip();
    
     void resolveMPCIfNeeded();    
+    void updateStateEstimate();
     void updateMPCCommand();
     void updateContactEstimate();
     void prepare_for_VWBC();
@@ -83,26 +94,35 @@ public:
     int nsteps_between_mpc_update;
     int nsteps_between_mpc_node;
     
-    Vec12<float> tau_des;
+    // Desried states, control etc
+    // Leg order and Joint convention follow the Pinocchio's parsing of MC URDF file
+    // i.e., [FR, FL, HR, HL], hip and knee have reversed rotations compared to Cheetah Software    
     Vec12<float> qJ_des;
-    Vec12<float> qJd_des;
-    Vec3<float> pos_des;
-    Vec3<float> eul_des;
-    Vec3<float> vWorld_des;
-    Vec3<float> eulrate_des;
+    Vec12<float> qJd_des;   
     Vec12<float> qJdd_des;
     Vec3<float> aWorld_des;
     Vec3<float> euldd_des;
+    Eigen::Vector<float, 36> x_des;
 
+    // Q matrices and feedback gain
+    Vec12<float> Qu_mpc;
+    Mat12<float> Quu_mpc;    
+
+    // State estimates
+    // Have the same convention as the desired states
+    Vec3<float> eul_se;
+    Vec3<float> eulrate_se;
+    Vec12<float> qJ_se;
+    Vec12<float> qJd_se;
+    Eigen::Vector<float, 36> x_se;
+    
     // Swing Control
     bool firstStance[4];
     Vec4<float> statusTimes;
     Vec4<float> contactStatus;
     Vec4<float> stanceState;
     Vec4<float> stanceTimes;
-    Vec4<float> stanceTimesRemain;
-    Eigen::Matrix<float, 12, 36> K_mpc;
-
+    Vec4<float> stanceTimesRemain;    
 
     // LCM
     lcm::LCM mpc_data_lcm;
