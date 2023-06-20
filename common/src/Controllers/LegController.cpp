@@ -88,6 +88,28 @@ void LegController<T>::updateData(const SpiData* spiData) {
     datas[leg].q(1) = spiData->q_hip[leg];
     datas[leg].q(2) = spiData->q_knee[leg];
 
+  #ifdef MINI_CHEETAH_BUILD
+    if (leg==0)
+    {
+      datas[leg].q(2) = spiData->q_knee[leg] + 0.1887;     
+    }
+    
+    if (leg==1)
+    {
+      datas[leg].q(2) = spiData->q_knee[leg] - 0.222;      
+    }
+    if (leg==2)
+    {
+      datas[leg].q(2) = spiData->q_knee[leg] + 0.2061;      
+    }
+    
+    if (leg==3)
+    {
+      datas[leg].q(1) = spiData->q_hip[leg] + 0.491;
+      datas[leg].q(2) = spiData->q_knee[leg] + 0.065;      
+    }
+  #endif
+
     // qd
     datas[leg].qd(0) = spiData->qd_abad[leg];
     datas[leg].qd(1) = spiData->qd_hip[leg];
@@ -163,6 +185,29 @@ void LegController<T>::updateCommand(SpiCommand* spiCommand) {
     spiCommand->q_des_abad[leg] = commands[leg].qDes(0);
     spiCommand->q_des_hip[leg] = commands[leg].qDes(1);
     spiCommand->q_des_knee[leg] = commands[leg].qDes(2);
+
+  #ifdef MINI_CHEETAH_BUILD
+    if (leg==0)
+    {
+      spiCommand->q_des_knee[leg] = commands[leg].qDes(2)-0.1887;
+    }
+
+    if (leg==1)
+    {
+      spiCommand->q_des_knee[leg] = commands[leg].qDes(2)+0.222;
+    }
+    if (leg==2)
+    {
+      spiCommand->q_des_knee[leg] = commands[leg].qDes(2)-0.2061;
+    }
+    
+    if (leg==3)
+    {
+      spiCommand->q_des_hip[leg] = commands[leg].qDes(1)-0.491;
+      spiCommand->q_des_knee[leg] = commands[leg].qDes(2)-0.065;
+    }
+  #endif
+    
 
     spiCommand->qd_des_abad[leg] = commands[leg].qdDes(0);
     spiCommand->qd_des_hip[leg] = commands[leg].qdDes(1);
