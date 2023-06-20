@@ -48,6 +48,7 @@ Imitation_Controller::Imitation_Controller() : mpc_cmds_lcm(getLcmUrl(255)),
 
     reset_settling_time = 0;
     reset_flag = false;
+
 }
 /*
     @brief: Do some initialiation
@@ -95,6 +96,7 @@ void Imitation_Controller::initializeController()
 
         pf_filter_buffer[foot].clear();
     }
+    ddp_feedback_gains.resize(12,12);
 }
 
 void Imitation_Controller::handleMPCLCMthread()
@@ -141,18 +143,37 @@ void Imitation_Controller::handleMPCcommand(const lcm::ReceiveBuffer *rbuf, cons
         }
         joint_control_bag.push_back(qJbar);
     }
-    // for (int l = 0; l < 4; l++){
-        
+    // update terrain info
+    terrain_info_bag.clear();
+    for (int i = 0; i < mpc_cmds.N_mpcsteps; i++){
+        Vec6<float> terrain_info_bar;
+        for (int j = 0; j < 6; j++){
+            terrain_info_bar[j] = mpc_cmds.terrain_info[i][j];
+        }
+        terrain_info_bag.push_back(terrain_info_bar);
+    }
+    // update desired body state
+    des_body_state_bag.clear();
+    for (int i = 0; i < mpc_cmds.N_mpcsteps; i++){
+        Vec12<float> des_body_state_bar;
+        for (int j = 0; j < 12; j++){
+            des_body_state_bar[j] = mpc_cmds.des_body_state[i][j];
+        }
+        des_body_state_bag.push_back(des_body_state_bar);
+    }
+    // update ddp feedback gains
+    ddp_feedback_gains_bag.clear();
+    for (int i = 0; i < mpc_cmds.N_mpcsteps; i++){
+        DMat<float> ddp_feedback_gains_bar;
+        ddp_feedback_gains_bar.resize(12, 12);
+        for (int j = 0; j < 12; j++){
+            for (int k = 0; k < 12; k++){
+                ddp_feedback_gains_bar(j,k) = mpc_cmds.feedback[i][j][k];
+            }
+        }
+        ddp_feedback_gains_bag.push_back(ddp_feedback_gains_bar);
+    }
 
-
-    //     qJ_des[l][0] = mpc_cmds.qJ_ref[3 * l];
-    //     qJ_des[l][1] = mpc_cmds.qJ_ref[3 * l + 1];
-    //     qJ_des[l][2] = mpc_cmds.qJ_ref[3 * l + 2];
-
-    //     qJd_des[l][0] = mpc_cmds.qJd_ref[3 * l];
-    //     qJd_des[l][1] = mpc_cmds.qJd_ref[3 * l + 1];
-    //     qJd_des[l][2] = mpc_cmds.qJd_ref[3 * l + 2];
-    // }
     mpc_cmd_mutex.unlock();
 }
 void Imitation_Controller::runController()
@@ -274,10 +295,13 @@ void Imitation_Controller::locomotion_ctrl()
     getContactStatus();
     getStatusDuration();
     update_mpc_if_needed();
-    // draw_swing();
+    draw_swing();
 
     // get a control from the solution bag
     get_a_val_from_solution_bag();
+
+    // update terrain info in state estimator
+    _stateEstimator->setTerrainInfo(center_point,plane_coefficients);
 
     Kp_swing = userParameters.Swing_Kp_cartesian.cast<float>().asDiagonal();
     Kd_swing = userParameters.Swing_Kd_cartesian.cast<float>().asDiagonal();
@@ -285,6 +309,31 @@ void Imitation_Controller::locomotion_ctrl()
     Kd_stance = Kd_swing;
 
     const auto &seResult = _stateEstimator->getResult();
+
+    body_state.segment<3>(0) << seResult.rpy[2], seResult.rpy[1], seResult.rpy[0];
+    body_state.segment<3>(3) = seResult.position;
+    body_state.segment<3>(6) = seResult.omegaWorld;
+    body_state.segment<3>(9) = seResult.vWorld;
+
+    // Mat12<float> k = Vec12<float>(1, 1, 1, 0.1, 0.1, 0.1, 1, 1, 1, 0.1, 0.1, 0.1).asDiagonal();
+    Mat12<float> k = 0.1 * Mat12<float>::Identity();
+    Vec12<float> ddp_feedback = 0.0 * ddp_feedback_gains * k * (des_body_state - body_state);
+
+    // set model state for swing traj
+    // FBModelState<float> model_state;
+    // model_state.bodyOrientation = _stateEstimate->orientation;
+    // model_state.bodyPosition    = _stateEstimate->position;
+    // model_state.bodyVelocity.head(3) = _stateEstimate->omegaBody;
+    // model_state.bodyVelocity.tail(3) = _stateEstimate->vBody;
+    // model_state.q.resize(12);
+    // model_state.qd.resize(12);
+    // for (int l = 0; l < 4; l++){
+    //     for (int i = 0; i < 3; i++){
+    //         model_state.q(3 * l + i) = _legController->datas[l].q[i];
+    //         model_state.qd(3 * l + i) = _legController->datas[l].qd[i];
+    //     }
+    // }
+    // _model->setState(model_state);
 
     /* swing leg control */
     // compute foot position and prediected GRF
@@ -295,23 +344,25 @@ void Imitation_Controller::locomotion_ctrl()
                    seResult.rBody.transpose() * (_quadruped->getHipLocation(l) + _legController->datas[l].p);
 
         // get the predicted GRF in global frame and convert to body frame
-        f_ff[l] = -seResult.rBody * mpc_control.segment(3 * l, 3).cast<float>();
+        // f_ff[l] = -seResult.rBody * mpc_control.segment(3 * l, 3).cast<float>();
+        f_ff[l] = -seResult.rBody * mpc_control.segment(3 * l, 3).cast<float>() + ddp_feedback.segment(3 * l, 3).cast<float>();
     }
 
     // do some first-time initilization
     float h = userParameters.Swing_height;
     float swing_vertex = 0.5;
-    float hop_time = 0.7; //1.2;
+    float hop_time = 1.2;
     if (mpc_time < hop_time){
         h = 0.25;
+        // swing_vertex = 0.4;
         // h = 0.45;
         // swing_vertex = 0.25;
         // if (mpc_time < 0.7){
-        //     h = 0.45;
-        //     swing_vertex = 0.3;
+        //     h = 0.35;
+        //     swing_vertex = 0.4;
         // }
         // else{
-        //     h = 0.2;
+        //     h = 0.15;
         //     swing_vertex = 0.7;
         // }
     }
@@ -369,9 +420,6 @@ void Imitation_Controller::locomotion_ctrl()
                 pf_filtered[i] += pf_filter_buffer[i][j];
             }
             pf_filtered[i] = pf_filtered[i] / pf_filter_buffer[i].size();
-            /////////////////////hack/////////////////////
-            // pf_filtered[i][0] = pf_filtered[i][0] + 0.05;
-            //////////////////////////////////////////////
             footSwingTrajectories[i].setFinalPosition(pf_filtered[i]);
 
             swingState[i] = (swingTimes[i] - swingTimesRemain[i]) / swingTimes[i];               // where are we in swing
@@ -386,17 +434,50 @@ void Imitation_Controller::locomotion_ctrl()
             _legController->commands[i].vDes = vDesLeg;
             _legController->commands[i].kpCartesian = Kp_swing;
             _legController->commands[i].kdCartesian = Kd_swing;
+            // _legController->commands[i].kpCartesian = 800*Vec3<float>(1.0,1.0,1.0).asDiagonal();
+            // _legController->commands[i].kdCartesian = 80*Vec3<float>(1.0,1.0,1.0).asDiagonal();
             firstStance[i] = true;
             stanceState[i] = 0;
 
-            // don't change too fast in joint space
+            // as is, there's no joint tracking, only damping
+            _legController->commands[i].kpJoint = 0*Vec3<float>(1.0, 1.0, 1.0).asDiagonal();
             _legController->commands[i].kdJoint = Vec3<float>(.1, .1, .1).asDiagonal();
-            // no joint tracking during flight
-            _legController->commands[i].kpJoint = Vec3<float>(0.0, 0.0, 0.0).asDiagonal();
             for (int j = 0; j < 3; j++){
-                _legController->commands[i].qDes[j] = 0*qJ_des[i][j];
+                _legController->commands[i].qDes[j] = qJ_des[i][j];
                 _legController->commands[i].qdDes[j] = 0*qJd_des[i][j];
             }
+
+            // feedforward torque for bezier swing
+            Vec3<float> aDesFootWorld = footSwingTrajectories[i].getAcceleration();
+            Mat3<float> J = _legController->datas[i].J;
+            DMat<float> H = _model->massMatrix();
+            Mat3<float> A = H.block<3, 3>(6 + i * 3, 6 + i * 3);
+            Mat3<float> Lambda = (J*A.inverse()*J.transpose()).inverse();
+            DVec<float> JdqJd = _model->_Jcdqd[i];
+            DVec<float> CqJd_full = _model->getCoriolisForce();
+            Vec3<float> CqJd = CqJd_full.segment(6 + i * 3, 3);
+            DVec<float> G_full = _model->getGravityForce();
+            Vec3<float> G = G_full.segment(6 + i * 3, 3);
+            _legController->commands[i].tauFeedForward = 0 * J.transpose() * Lambda * (aDesFootWorld);// - 0*JdqJd) + CqJd + G;
+
+            //  null-space controller
+            // Mat3<float> J = _legController->datas[i].J;
+            // DMat<float> H = _model->massMatrix();
+            // Mat3<float> A = H.block<3, 3>(6 + i * 3, 6 + i * 3);
+            // Mat3<float> Lambda = (J*A.inverse()*J.transpose()).inverse();
+            // Mat3<float> J_hat = A.inverse() * J.transpose() * Lambda; //dynamically consistent generalized inverse (Khatib 1987)
+            // float kp_null = 10;
+            // Mat3<float> kpJoint = Mat3<float>::Identity() - J.transpose() * J_hat.transpose();
+            // kpJoint = kpJoint / kpJoint.norm();
+
+            // _legController->commands[i].kpJoint = kp_null * kpJoint;//kp_null * (Mat3<float>::Identity() - Jf.transpose() * Jf_dag);
+            // _legController->commands[i].qDes = userParameters.angles_jointPD.cast<float>();
+
+            // std::cout << "kpJoint eigenvalues (real parts): " << kpJoint.eigenvalues().real().transpose() << std::endl;
+
+            // std::cout << "qDes: " << std::endl;
+            // std::cout << _legController->commands[i].qDes.transpose() << std::endl;
+            
         }
         // else in stance
         else
@@ -417,12 +498,12 @@ void Imitation_Controller::locomotion_ctrl()
 
             _legController->commands[i].forceFeedForward = f_ff[i];
 
-            // joint PD
-            _legController->commands[i].kpJoint = Mat3<float>::Identity() * 1.0;
-            _legController->commands[i].kdJoint = Mat3<float>::Identity() * .1;
+            // joint PD (just damping)
+            _legController->commands[i].kpJoint = 0.0 * Mat3<float>::Identity();
+            _legController->commands[i].kdJoint = 0.1 * Mat3<float>::Identity();
             for (int j = 0; j < 3; j++){
                 _legController->commands[i].qDes[j] = qJ_des[i][j];
-                _legController->commands[i].qdDes[j] = qJd_des[i][j];
+                _legController->commands[i].qdDes[j] = 0.0 * qJd_des[i][j];
             }
 
             // seed state estimate
@@ -615,6 +696,21 @@ void Imitation_Controller::get_a_val_from_solution_bag()
         {
             if (mpc_time < mpc_cmds.mpc_times[i + 1])
             {
+                // linear interpolate control commands
+                // float alpha = (mpc_time - mpc_cmds.mpc_times[i]) / (mpc_cmds.mpc_times[i + 1] - mpc_cmds.mpc_times[i]);
+                // if(!(alpha >= 0 && alpha <= 1)){
+                //     is_safe = false;
+                // };
+                // mpc_control = (1 - alpha) * mpc_control_bag[i] + alpha * mpc_control_bag[i + 1];
+                // for (int l = 0; l < 4; l++){
+                //     qJ_des[l][0] = (1 - alpha) * joint_control_bag[i][l * 3] + alpha * joint_control_bag[i + 1][l * 3];
+                //     qJ_des[l][1] = (1 - alpha) * joint_control_bag[i][l * 3 + 1] + alpha * joint_control_bag[i + 1][l * 3 + 1];
+                //     qJ_des[l][2] = (1 - alpha) * joint_control_bag[i][l * 3 + 2] + alpha * joint_control_bag[i + 1][l * 3 + 2];
+
+                //     qJd_des[l][0] = (1 - alpha) * joint_control_bag[i][l * 3 + 12] + alpha * joint_control_bag[i + 1][l * 3 + 12];
+                //     qJd_des[l][1] = (1 - alpha) * joint_control_bag[i][l * 3 + 13] + alpha * joint_control_bag[i + 1][l * 3 + 13];
+                //     qJd_des[l][2] = (1 - alpha) * joint_control_bag[i][l * 3 + 14] + alpha * joint_control_bag[i + 1][l * 3 + 14];
+                // }
                 mpc_control = mpc_control_bag[i];
                 for (int l = 0; l < 4; l++){
                     qJ_des[l][0] = joint_control_bag[i][l*3];
@@ -625,6 +721,12 @@ void Imitation_Controller::get_a_val_from_solution_bag()
                     qJd_des[l][1] = joint_control_bag[i][l*3+13];
                     qJd_des[l][2] = joint_control_bag[i][l*3+14];
                 }
+                for (int j = 0; j < 3; j++){
+                    center_point[j] = terrain_info_bag[i][j];
+                    plane_coefficients[j] = terrain_info_bag[i][j+3];
+                }
+                des_body_state = des_body_state_bag[i];
+                ddp_feedback_gains = ddp_feedback_gains_bag[i];
                 break;
             }
         }

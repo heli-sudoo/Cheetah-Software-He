@@ -50,14 +50,14 @@ void FootSwingTrajectory<T>::computeSwingTrajectoryBezier(T phase, T swingTime, 
 
   T zp, zv, za;
 
-  if(phase < T(vertex)) {
-    zp = Interpolate::cubicBezier<T>(_p0[2], _p0[2] + _height, phase / T(vertex));
-    zv = Interpolate::cubicBezierFirstDerivative<T>(_p0[2], _p0[2] + _height, phase / T(vertex)) / T(vertex) / swingTime;
-    za = Interpolate::cubicBezierSecondDerivative<T>(_p0[2], _p0[2] + _height, phase / T(vertex)) / (T(vertex)*T(vertex)) / (swingTime * swingTime);
+  if(phase < vertex) {
+    zp = Interpolate::cubicBezier<T>(_p0[2], _p0[2] + _height, phase / vertex);
+    zv = Interpolate::cubicBezierFirstDerivative<T>(_p0[2], _p0[2] + _height, phase / vertex) / vertex / swingTime;
+    za = Interpolate::cubicBezierSecondDerivative<T>(_p0[2], _p0[2] + _height, phase / vertex) / (vertex*vertex) / (swingTime * swingTime);
   } else {
-    zp = Interpolate::cubicBezier<T>(_p0[2] + _height, _pf[2], (phase-T(vertex)) / (1-T(vertex)));
-    zv = Interpolate::cubicBezierFirstDerivative<T>(_p0[2] + _height, _pf[2], (phase-T(vertex)) / (1-T(vertex))) / (1-T(vertex)) / swingTime;
-    za = Interpolate::cubicBezierSecondDerivative<T>(_p0[2] + _height, _pf[2], (phase-T(vertex)) / (1-T(vertex))) / ((1-T(vertex))*(1-T(vertex))) / (swingTime * swingTime);
+    zp = Interpolate::cubicBezier<T>(_p0[2] + _height, _pf[2], (phase - vertex) / (1 - vertex));
+    zv = Interpolate::cubicBezierFirstDerivative<T>(_p0[2] + _height, _pf[2], (phase - vertex) / (1 - vertex)) / (swingTime * (1 - vertex));
+    za = Interpolate::cubicBezierSecondDerivative<T>(_p0[2] + _height, _pf[2], (phase - vertex) / (1 - vertex)) / (swingTime * swingTime * (1 - vertex) * (1 - vertex));
   }
 
   _p[2] = zp;

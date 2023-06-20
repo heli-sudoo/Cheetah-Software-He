@@ -59,6 +59,9 @@ public:
     // MPC
     deque<Vec24<float>> mpc_control_bag;
     deque<Vec24<float>> joint_control_bag; // [qJ_des;qJd_des]
+    deque<Vec6<float>> terrain_info_bag; // [center_point;plane_coefficients]
+    deque<Vec12<float>> des_body_state_bag;
+    deque<DMat<float>> ddp_feedback_gains_bag;
     double mpc_time;
     int iter;
     int iter_loco;
@@ -133,8 +136,15 @@ public:
     bool has_mpc_reset;
     int ext_force_count;
 
+    // terrain info
+    Vec3<float> center_point;
+    Vec3<float> plane_coefficients;
+
 private:
     Vec24<float> mpc_control;
+    Vec12<float> des_body_state;
+    Vec12<float> body_state;
+    DMat<float> ddp_feedback_gains;
     Vec3<float> init_joint_pos[4];
     bool in_standup;
     int iter_standup;

@@ -24,6 +24,15 @@ class LinearKFPositionVelocityEstimator : public GenericEstimator<T> {
   virtual void run();
   virtual void setup();
 
+  void updateGroundHeight(Vec3<T> foot_position, int foot_index){
+    static Vec3<T> n;
+    static Vec3<T> p;
+    n = *this->_stateEstimatorData.plane_coefficients;
+    p = *this->_stateEstimatorData.center_point;
+    (*this->_stateEstimatorData.groundHeights)[foot_index] = -1/n[2] *
+            (n[0]*(foot_position[0]-p[0]) + n[1]*(foot_position[1]-p[1])) + p[2];
+  }
+
  private:
   Eigen::Matrix<T, 18, 1> _xhat;
   Eigen::Matrix<T, 12, 1> _ps;

@@ -42,15 +42,37 @@ box-1:
     transparent: 1
 
 # obstacle-1:
-#     type: "box"
-#     mu: 0.7
-#     restitution: 0
-#     depth: 0.01
-#     width: 0.5401
-#     height: 0.2
-#     position:  [0.32, 0, 0.0]
-#     orientation: [0,.0,0]  # roll pitch yaw
-#     transparent: 1
+    type: "box"
+    mu: 0.7
+    restitution: 0
+    depth: 0.01
+    width: 0.5401
+    height: 0.2
+    position:  [0.32, 0, 0.0]
+    orientation: [0,.0,0]  # roll pitch yaw
+    transparent: 1
+
+# box-2:
+    type: "box"
+    mu: 0.7
+    restitution: 0
+    depth: 0.5401
+    width: 0.5401
+    height: 0.0001
+    position:  [0.64, 0, 0.0]
+    orientation: [0,.0,0]  # roll pitch yaw
+    transparent: 1
+
+# box-2:
+    type: "box"
+    mu: 0.7
+    restitution: 0
+    depth: 0.5401
+    width: 0.5401
+    height: 0.2
+    position:  [0.64, 0, 0.1]
+    orientation: [0,.0,0]  # roll pitch yaw
+    transparent: 1
 
 box-2:
     type: "box"
@@ -59,7 +81,7 @@ box-2:
     depth: 0.5401
     width: 0.5401
     height: 0.0001
-    position:  [0.64, 0, 0.0] #.1]
+    position:  [0.64, 0.37, 0.0]
     orientation: [0,.0,0]  # roll pitch yaw
     transparent: 1
 

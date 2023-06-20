@@ -64,6 +64,10 @@ struct StateEstimatorData {
   LegControllerData<T>* legControllerData;
   Vec4<T>* contactPhase;
   RobotControlParameters* parameters;
+
+  Vec4<T>* groundHeights; // ground heights for each foot
+  Vec3<T>* center_point;
+  Vec3<T>* plane_coefficients;
 };
 
 /*!
@@ -106,6 +110,14 @@ class StateEstimatorContainer {
     _phase = Vec4<T>::Zero();
     _data.contactPhase = &_phase;
     _data.parameters = parameters;
+
+    _groundHeights = Vec4<T>::Zero();
+    _data.groundHeights = &_groundHeights;
+    _center_point = Vec3<T>::Zero();
+    _data.center_point = &_center_point;
+    _plane_coefficients = Vec3<T>::Zero();
+    _plane_coefficients[2] = 1.0;
+    _data.plane_coefficients = &_plane_coefficients;
   }
 
   /*!
@@ -133,6 +145,14 @@ class StateEstimatorContainer {
    */
   void setContactPhase(Vec4<T>& phase) { 
     *_data.contactPhase = phase; 
+  }
+
+  /*!
+   * Set the Terrain Information
+  */
+  void setTerrainInfo(Vec3<T>& center_point_in, Vec3<T>& plane_coefficients_in){
+    *_data.center_point = center_point_in;
+    *_data.plane_coefficients = plane_coefficients_in;
   }
 
   /*!
@@ -188,6 +208,10 @@ class StateEstimatorContainer {
   StateEstimatorData<T> _data;
   std::vector<GenericEstimator<T>*> _estimators;
   Vec4<T> _phase;
+
+  Vec4<T> _groundHeights;
+  Vec3<T> _center_point;
+  Vec3<T> _plane_coefficients;
 };
 
 #endif  // PROJECT_STATEESTIMATOR_H
