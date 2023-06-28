@@ -46,6 +46,10 @@ public:
     bool check_safty();
     void twist_leg();
 
+    void SetContactDetector();
+    void RunContactDetector();
+    bool contact_detector_ready = false;
+
 private: //help functions
     void draw_swing();
     void test_mpc_update();
@@ -89,6 +93,8 @@ public:
     Vec3<float> aFoot_des[4];    //desired swing foot accelerations
     Vec3<float> pf[4];           // foothold locations
     Vec3<float> pf_filtered[4];           // foothold locations
+    Vec3<float> pf_body[4];      // foothold locations in body frame
+    Vec3<float> pf_body_filtered[4];
     Vec3<float> pFoot[4];        //actual swing foot positions
     Vec3<float> vFoot[4];        //actual swing foot velocities
     FootSwingTrajectory<float> footSwingTrajectories[4];
@@ -101,6 +107,7 @@ public:
 
     // foot location filter
     deque<Vec3<float>> pf_filter_buffer[4]; // buffer storing re-optimized foot locations
+    deque<Vec3<float>> pf_body_filter_buffer[4];
     int filter_window;
 
     // LCM
@@ -149,6 +156,26 @@ private:
     bool in_standup;
     int iter_standup;
     int desired_command_mode;    
+
+    Vec4<float> qd_knee_prev;
+    Vec4<bool> early_contact;
+
+    float prev_z_point;
+    bool jumping_on_box = false;
+    bool jumping_off_box = false;
+
+    Vec4<float> swing_heights;
+    Vec3<float> prev_plane_coefficients;
+    Vec4<float> swing_offsets;
+
+    Vec3<float> pDesLeg[4];
+    Vec3<float> vDesLeg[4];
+
+    Vec3<float> pDesLegFinal[4];
+
+    bool shortened_flight = false;
+
+    bool state_passive_mode = false;
 };
 
 #endif

@@ -34,10 +34,10 @@ else(MINI_CHEETAH_BUILD)
     ${CMAKE_BINARY_DIR}/Configuration.h)
 
   if(CMAKE_SYSTEM_NAME MATCHES Linux)
-    set(CMAKE_CXX_FLAGS "-O3 -no-pie -ggdb -Wall \
+    set(CMAKE_CXX_FLAGS "-O3 -no-pie -Wall \
     -Wextra -Wcast-align -Wdisabled-optimization -Wformat=2 \
     -Winit-self -Wmissing-include-dirs -Woverloaded-virtual \
-    -Wshadow -Wsign-promo")
+    -Wshadow -Wsign-promo")# -ggdb")
   elseif(APPLE)
     set(CMAKE_CXX_FLAGS "-O3 -ggdb -Wall \
     -Wextra -Wcast-align -Wdisabled-optimization -Wformat=2 \
@@ -46,7 +46,7 @@ else(MINI_CHEETAH_BUILD)
     include_directories("/usr/local/include/")   # lcm includes
   endif()
 
-  set(CMAKE_C_FLAGS "-O3 -ggdb -std=gnu99 -I.")
+  set(CMAKE_C_FLAGS "-O3 -std=gnu99 -I.")# -ggdb")
   message("**** Mini-Cheetah build disabled ****")
 endif(MINI_CHEETAH_BUILD)
 

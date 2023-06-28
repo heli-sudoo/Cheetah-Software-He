@@ -57,6 +57,10 @@ public:
   
   void computeSwingTrajectoryBezier(T phase, T swingTime, T vertex);
 
+  void computeSwingTrajectoryBezier(T phase, T swingTime, T vertex, T xy_creep);
+
+  void computeSwingTrajectoryBezierInBodyFrame(T phase, T swingTime, T vertex, T xy_creep);
+
   /*!
    * Get the foot position at the current point along the swing
    * @return : the foot position
