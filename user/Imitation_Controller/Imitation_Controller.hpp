@@ -54,6 +54,10 @@ private: //help functions
     void draw_swing();
     void test_mpc_update();
     void passive_mode();
+
+    void draw_mpc_ref_data();
+
+    void pd_lock_mode();
     
 
 protected:
@@ -93,8 +97,8 @@ public:
     Vec3<float> aFoot_des[4];    //desired swing foot accelerations
     Vec3<float> pf[4];           // foothold locations
     Vec3<float> pf_filtered[4];           // foothold locations
-    Vec3<float> pf_body[4];      // foothold locations in body frame
-    Vec3<float> pf_body_filtered[4];
+    Vec3<float> pf_rel_com[4];      // foothold locations relative to com position at touchdown
+    Vec3<float> pf_rel_com_filtered[4];
     Vec3<float> pFoot[4];        //actual swing foot positions
     Vec3<float> vFoot[4];        //actual swing foot velocities
     FootSwingTrajectory<float> footSwingTrajectories[4];
@@ -107,7 +111,7 @@ public:
 
     // foot location filter
     deque<Vec3<float>> pf_filter_buffer[4]; // buffer storing re-optimized foot locations
-    deque<Vec3<float>> pf_body_filter_buffer[4];
+    deque<Vec3<float>> pf_rel_com_filter_buffer[4];
     int filter_window;
 
     // LCM
@@ -175,7 +179,10 @@ private:
 
     bool shortened_flight = false;
 
-    bool state_passive_mode = false;
+    bool pd_lock = false;
+
+    Vec3<float> vcom_td;
+    Vec3<float> foot_offset;
 };
 
 #endif

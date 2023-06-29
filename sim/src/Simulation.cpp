@@ -58,7 +58,8 @@ Simulation::Simulation(RobotType robot, Graphics3D* window,
     Vec4<float> truthColor, seColor;
     truthColor << 0.2, 0.4, 0.2, 0.6;
     // seColor << .75,.75,.75, 1.0;
-    seColor << 0.8294, 0.5941, 0.1255, .92;
+    // seColor << 0.8294, 0.5941, 0.1255, .92;
+    seColor << 0.75, 0.75, 0.75, 0.2;
 #ifdef DRAW_DEBUG
     truthColor << 0.2, 0.4, 0.2, 0.1;
     seColor << .75,.75,.75, .1;
