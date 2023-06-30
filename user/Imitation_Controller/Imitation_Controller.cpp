@@ -312,8 +312,8 @@ void Imitation_Controller::pd_lock_mode()
     static int pd_iter = 0;
     static Vec3<float> qJ_init[4];
 
-    Mat3<float> Kp_joint_lock = 40.0*Mat3<float>::Identity();
-    Mat3<float> Kd_joint_lock = 4.0*Mat3<float>::Identity();
+    Mat3<float> Kp_joint_lock = userParameters.Kp_jointPD.cast<float>().asDiagonal();;
+    Mat3<float> Kd_joint_lock = userParameters.Kd_jointPD.cast<float>().asDiagonal();;
 
     if (first_run){
         std::cout << "PD Mode" << std::endl;
@@ -461,7 +461,7 @@ void Imitation_Controller::locomotion_ctrl()
             }
             pf_rel_com_filtered[i] = pf_rel_com_filtered[i] / pf_rel_com_filter_buffer[i].size();
 
-            float min_foot_dist = 0.25;
+            float min_foot_dist = 0.2;//5;
             if ((pf_rel_com_filtered[i] + foot_offset).norm() < min_foot_dist
                 && !contactStatus[0] && !contactStatus[1] && !contactStatus[2] && !contactStatus[3] 
                 && swingState[0] < 0.5 && swingState[1] < 0.5 && swingState[2] < 0.5 && swingState[3] < 0.5)
@@ -591,7 +591,7 @@ void Imitation_Controller::locomotion_ctrl()
                 _legController->commands[i].pDes = pDesLeg[i];
                 _legController->commands[i].vDes = 0*vDesLeg[i];
                 _legController->commands[i].kpCartesian = 0*Kp_swing;
-                _legController->commands[i].kdCartesian = 5*Kd_swing;
+                _legController->commands[i].kdCartesian = 2*Kd_swing;
             }
 
             min_foot_height_td = std::min(min_foot_height_td, -pf_rel_com_filtered[i][2]);
@@ -607,7 +607,7 @@ void Imitation_Controller::locomotion_ctrl()
             _legController->commands[i].pDes = pDesLeg[i];
             _legController->commands[i].vDes = 0*vDesLeg[i];
             _legController->commands[i].kpCartesian = 0*Kp_stance;
-            _legController->commands[i].kdCartesian = 5 * std::max(1 - 4*stanceState[i], 0.0f) * Kd_stance; // roll off
+            _legController->commands[i].kdCartesian = 2 * std::max(1 - 4*stanceState[i], 0.0f) * Kd_stance; // roll off
             
 
             _legController->commands[i].forceFeedForward = f_ff[i] + 0 * (1 - 0.9 * stanceState[i]) * f_ff_feedback[i];
@@ -649,7 +649,7 @@ void Imitation_Controller::locomotion_ctrl()
                 }
                 else{
                     stanceState[i] = 0.5;
-                    pd_lock = true;
+                    // pd_lock = true;
                 }
             }
         }
@@ -675,8 +675,8 @@ void Imitation_Controller::locomotion_ctrl()
     mpc_time = iter_loco * _controlParameters->controller_dt; // where we are since MPC starts
     iter_between_mpc_update++;
 
-    draw_swing();
-    draw_mpc_ref_data();
+    // draw_swing();
+    // draw_mpc_ref_data();
 }
 
 void Imitation_Controller::address_yaw_ambiguity()
@@ -871,6 +871,9 @@ void Imitation_Controller::get_a_val_from_solution_bag()
                 ddp_feedback_gains = ddp_feedback_gains_bag[i];
                 break;
             }
+        }
+        else if (i == mpc_cmds.N_mpcsteps - 1){
+            is_safe = false;
         }
     }
     mpc_cmd_mutex.unlock();
