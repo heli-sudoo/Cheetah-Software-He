@@ -37,7 +37,7 @@ else(MINI_CHEETAH_BUILD)
     set(CMAKE_CXX_FLAGS "-O3 -no-pie -Wall \
     -Wextra -Wcast-align -Wdisabled-optimization -Wformat=2 \
     -Winit-self -Wmissing-include-dirs -Woverloaded-virtual \
-    -Wshadow -Wsign-promo")# -ggdb")
+    -Wshadow -Wsign-promo -ggdb")
   elseif(APPLE)
     set(CMAKE_CXX_FLAGS "-O3 -ggdb -Wall \
     -Wextra -Wcast-align -Wdisabled-optimization -Wformat=2 \

@@ -13,6 +13,8 @@
 #include "reset_sim_t.hpp"
 #include "extForce_t.hpp"
 
+// #include <time.h>
+
 using std::deque;
 class Imitation_Controller : public RobotController
 {
@@ -183,6 +185,10 @@ private:
 
     Vec3<float> vcom_td;
     Vec3<float> foot_offset;
+
+    // clock_t start;
+    // clock_t end;
+    // double cpu_time_used;
 };
 
 #endif

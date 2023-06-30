@@ -61,7 +61,7 @@ void Imitation_Controller::initializeController()
     mpc_time = 0;
     iter_loco = 0;
     iter_between_mpc_update = 0;
-    nsteps_between_mpc_update = 10;
+    nsteps_between_mpc_update = 5;//10;
     yaw_flip_plus_times = 0;
     yaw_flip_mins_times = 0;
     raw_yaw_cur = _stateEstimate->rpy[2];
@@ -100,6 +100,8 @@ void Imitation_Controller::initializeController()
     }
     ddp_feedback_gains.resize(12,12);
     foot_offset.setZero();
+
+    // start = clock();
 }
 
 void Imitation_Controller::handleMPCLCMthread()
@@ -116,6 +118,8 @@ void Imitation_Controller::handleMPCcommand(const lcm::ReceiveBuffer *rbuf, cons
     printf(GRN);
     printf("Received a lcm mpc command message \n");
     printf(RESET);
+    // end = clock();
+    // std::cout << "cpu_time: " << ((double) (end - start)) / CLOCKS_PER_SEC * 1e3 << std::endl;
     mpc_cmd_mutex.lock();
     // copy the lcm data
     mpc_cmds = *msg;
@@ -562,7 +566,7 @@ void Imitation_Controller::locomotion_ctrl()
             Vec3<float> G = G_full.segment(6 + i * 3, 3);
 
             // feedback terms: exponential error response
-            float wn = 100.0;
+            float wn = 30.0;
             float KpFoot = wn * wn;
             float KdFoot = 2 * wn;
             Vec3<float> pFootHip = _legController->datas[i].p;
@@ -737,6 +741,7 @@ bool Imitation_Controller::check_safty()
 void Imitation_Controller::update_mpc_if_needed()
 {
     /* If haven't reached to the replanning time, skip */
+    // std::cout << "iter_between_mpc_update: " << iter_between_mpc_update << std::endl;
     if (iter_between_mpc_update < nsteps_between_mpc_update)
     {
         return;
@@ -769,6 +774,8 @@ void Imitation_Controller::update_mpc_if_needed()
     printf(YEL);
     printf("sending a request for updating mpc\n");
     printf(RESET);
+    // end = clock();
+    // std::cout << "cpu_time: " << ((double) (end - start)) / CLOCKS_PER_SEC * 1e3 << std::endl;
 }
 
 void Imitation_Controller::reset_mpc()
