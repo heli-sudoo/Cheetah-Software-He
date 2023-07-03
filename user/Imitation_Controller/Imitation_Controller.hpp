@@ -13,7 +13,7 @@
 #include "reset_sim_t.hpp"
 #include "extForce_t.hpp"
 
-// #include <time.h>
+#include <time.h>
 
 using std::deque;
 class Imitation_Controller : public RobotController
@@ -45,12 +45,13 @@ public:
     void reset_mpc();
     void address_yaw_ambiguity();
     void apply_external_force();
-    bool check_safty();
+    bool check_safety();
     void twist_leg();
 
     void SetContactDetector();
     void RunContactDetector();
     bool contact_detector_ready = false;
+    float GetGroundHeight(Vec3<float> p);
 
 private: //help functions
     void draw_swing();
@@ -58,8 +59,6 @@ private: //help functions
     void passive_mode();
 
     void draw_mpc_ref_data();
-
-    void pd_lock_mode();
     
 
 protected:
@@ -181,14 +180,12 @@ private:
 
     bool shortened_flight = false;
 
-    bool pd_lock = false;
-
     Vec3<float> vcom_td;
     Vec3<float> foot_offset;
 
-    // clock_t start;
-    // clock_t end;
-    // double cpu_time_used;
+    clock_t start;
+    clock_t end;
+    double cpu_time_used;
 };
 
 #endif
