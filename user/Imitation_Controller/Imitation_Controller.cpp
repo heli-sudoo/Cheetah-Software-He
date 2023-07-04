@@ -196,6 +196,12 @@ void Imitation_Controller::runController()
 {
     iter++;
 
+    if (iter_loco * _controlParameters->controller_dt >= userParameters.max_loco_time)
+    {
+        reset_flag = true;
+        reset_settling_time = 0;
+    }
+
     if (_controlParameters->use_rc > 0)
     {
         desired_command_mode = _desiredStateCommand->rcCommand->mode;
@@ -280,6 +286,8 @@ void Imitation_Controller::passive_mode()
 void Imitation_Controller::locomotion_ctrl()
 {
     iter_loco++;
+
+    is_safe = is_safe && check_safety();
 
     float hop_time = 3.0;
     if (!is_safe ||
@@ -497,7 +505,7 @@ void Imitation_Controller::locomotion_ctrl()
             Vec3<float> G = G_full.segment(6 + i * 3, 3);
 
             // feedback terms: exponential error response
-            float wn = 50.0;
+            float wn = 30.0;
             float KpFoot = wn * wn;
             float KdFoot = 2 * wn;
             Vec3<float> pFootHip = _legController->datas[i].p;
@@ -523,7 +531,7 @@ void Imitation_Controller::locomotion_ctrl()
                 _legController->commands[i].pDes = pDesLeg[i];
                 _legController->commands[i].vDes = 0*vDesLeg[i];
                 _legController->commands[i].kpCartesian = 0*Kp_swing;
-                _legController->commands[i].kdCartesian = 5*Kd_swing;
+                _legController->commands[i].kdCartesian = 1*Kd_swing;
             }
 
             min_foot_height_td = std::min(min_foot_height_td, -pf_rel_com_filtered[i][2]);
@@ -539,10 +547,10 @@ void Imitation_Controller::locomotion_ctrl()
             _legController->commands[i].pDes = pDesLeg[i];
             _legController->commands[i].vDes = 0*vDesLeg[i];
             _legController->commands[i].kpCartesian = 0*Kp_stance;
-            _legController->commands[i].kdCartesian = std::max(3 * (1 - 2*stanceState[i]), 0.0f) * Kd_stance; // roll off
+            _legController->commands[i].kdCartesian = std::max(1 * (1 - 2*stanceState[i]), 0.0f) * Kd_stance; // roll off
             
 
-            _legController->commands[i].forceFeedForward = f_ff[i] + /*(1 - 0.9 * stanceState[i]) */ f_ff_feedback[i];
+            _legController->commands[i].forceFeedForward = f_ff[i] + /*(1 - 0.9 * stanceState[i]) */ 0*f_ff_feedback[i];
 
             // joint PD (zeroed out)
             _legController->commands[i].kpJoint = 0*Mat3<float>::Identity();
@@ -589,10 +597,6 @@ void Imitation_Controller::locomotion_ctrl()
     //singularity barrier
     for (int l = 0; l < 4; l++){
         if (_legController->datas[l].q(2) < .1){ 
-            // std::cout << "Singularity barrier activated." << std::endl;
-            // // _legController->commands[l].tauFeedForward[2] = 50*_legController->datas[l].q(2);
-            // _legController->commands[l].qDes[2] = 0.2;
-            // _legController->commands[l].kpJoint(2,2) = 50.0;
             is_safe = false;
         }
     }
@@ -647,10 +651,18 @@ bool Imitation_Controller::check_safety()
     if (fabs(_stateEstimate->rpy(0)) >= PI/2 ||
         fabs(_stateEstimate->rpy(1)) >= PI/2 ||
         fabs(_stateEstimate->rpy(2)) >= PI/2)
-        {
-            printf("Orientation safety check failed!\n");
+    {
+        printf("Orientation safety check failed!\n");
+        return false;
+    }
+
+    // Check singularity
+    for (int l = 0; l < 4; l++){
+        if (_legController->datas[l].q(2) < .1){ 
             return false;
         }
+    }
+    
 
     bool tau_safe = true;
     for (int leg = 0; leg < 4; leg++)
