@@ -322,14 +322,30 @@ void Imitation_Controller::locomotion_ctrl()
     Vec12<float> ddp_feedback = ddp_feedback_gains * (des_body_state - body_state);
     Vec3<float> f_ff_feedback[4];
 
-    // compute foot position and prediected GRF
+    // compute foot position and predicted GRF
     for (int l = 0; l < 4; l++)
     {
         // compute the actual foot positions
         pFoot[l] = seResult.position +
                    seResult.rBody.transpose() * (_quadruped->getHipLocation(l) + _legController->datas[l].p);
+
+        // friction cone check
+        f_ff[l] = mpc_control.segment(3 * l, 3).cast<float>();
+        if (f_ff[l][2] < 0){
+            std::cout << "Zeroed force on leg " << l << " (fz < 0)." << std::endl;
+            std::cout << "   Force: " << f_ff[l].transpose() << std::endl;
+            f_ff[l].setZero();
+        }
+        else if (pow(f_ff[l][0],2) + pow(f_ff[l][1],2) > 0.7 * pow(f_ff[l][2],2)){
+            std::cout << "Projected force on leg " << l << " back onto friction cone. " << std::endl;
+            std::cout << "   Force (before): " << f_ff[l].transpose() << std::endl;
+            Vec3<float> fhat = Vec3<float> (f_ff[l][0], f_ff[l][1], sqrt(1/0.7 * (pow(f_ff[l][0],2) + pow(f_ff[l][1],2))));
+            f_ff[l] = f_ff[l].dot(fhat) / pow(fhat.norm(),2) * fhat;
+            std::cout << "   Force (after) : " << f_ff[l].transpose() << std::endl;
+        }
+
         // get the predicted GRF in global frame and convert to body frame
-        f_ff[l] = -seResult.rBody * mpc_control.segment(3 * l, 3).cast<float>();
+        f_ff[l] = -seResult.rBody * f_ff[l];
         f_ff_feedback[l] = seResult.rBody * ddp_feedback.segment(3 * l, 3).cast<float>();
     }
 
@@ -339,7 +355,7 @@ void Imitation_Controller::locomotion_ctrl()
     float xy_creep = 1.0;
     
     swing_heights.setOnes();
-    swing_heights *= userParameters.Swing_height;
+    swing_heights *= 0.08; //userParameters.Swing_height;
     
     // set model state for swing traj
     FBModelState<float> model_state;
@@ -405,7 +421,8 @@ void Imitation_Controller::locomotion_ctrl()
         pf_rel_com_filtered[i] = pf_rel_com_filtered[i] / pf_rel_com_filter_buffer[i].size();
         pDesLegFinal[i] = pf_rel_com_filtered[i] - seResult.rBody.transpose()*_quadruped->getHipLocation(i);
         
-        float min_foot_dist = 0.2 - 0.05 * (center_point[2] > 1e-3);
+        // float min_foot_dist = 0.2 - 0.05 * (center_point[2] > 1e-3);
+        float min_foot_dist = 0.25 - 0.1 * (center_point[2] > 1e-3);
         if ((pDesLegFinal[i] + foot_offset).norm() < min_foot_dist
             && !contactStatus[0] && !contactStatus[1] && !contactStatus[2] && !contactStatus[3]) 
             // && swingState[0] < 0.5 && swingState[1] < 0.5 && swingState[2] < 0.5 && swingState[3] < 0.5)
@@ -659,6 +676,7 @@ bool Imitation_Controller::check_safety()
     // Check singularity
     for (int l = 0; l < 4; l++){
         if (_legController->datas[l].q(2) < .1){ 
+            printf("Singularity safety check failed!\n");
             return false;
         }
     }
@@ -1011,7 +1029,7 @@ void Imitation_Controller::RunContactDetector()
         }
         qd_knee_prev[i] = _legController->datas[i].qd[1];
     
-        Vec3<float> pf_des_world = seResult.position + pf_rel_com_filtered[i];
+        Vec3<float> pf_des_world = seResult.position + pDesLeg[i];
         if (pf_des_world[2] < GetGroundHeight(pf_des_world)){
             early_contact[i] = true;
         }
