@@ -61,7 +61,7 @@ void Imitation_Controller::initializeController()
     mpc_time = 0;
     iter_loco = 0;
     iter_between_mpc_update = 0;
-    nsteps_between_mpc_update = 5;//10;
+    nsteps_between_mpc_update = 10;//5;//10;
     yaw_flip_plus_times = 0;
     yaw_flip_mins_times = 0;
     raw_yaw_cur = _stateEstimate->rpy[2];
@@ -330,7 +330,7 @@ void Imitation_Controller::locomotion_ctrl()
                    seResult.rBody.transpose() * (_quadruped->getHipLocation(l) + _legController->datas[l].p);
 
         // friction cone check
-        f_ff[l] = mpc_control.segment(3 * l, 3).cast<float>();
+        f_ff[l] = mpc_control.segment(3 * l, 3).cast<float>() - 0.2 * ddp_feedback.segment(3 * l, 3).cast<float>();
         if (f_ff[l][2] < 0){
             std::cout << "Zeroed force on leg " << l << " (fz < 0)." << std::endl;
             std::cout << "   Force: " << f_ff[l].transpose() << std::endl;
@@ -346,7 +346,6 @@ void Imitation_Controller::locomotion_ctrl()
 
         // get the predicted GRF in global frame and convert to body frame
         f_ff[l] = -seResult.rBody * f_ff[l];
-        f_ff_feedback[l] = seResult.rBody * ddp_feedback.segment(3 * l, 3).cast<float>();
     }
 
     // set swing trajectory parameters
@@ -567,7 +566,7 @@ void Imitation_Controller::locomotion_ctrl()
             _legController->commands[i].kdCartesian = std::max(1 * (1 - 2*stanceState[i]), 0.0f) * Kd_stance; // roll off
             
 
-            _legController->commands[i].forceFeedForward = f_ff[i] + /*(1 - 0.9 * stanceState[i]) */ 0*f_ff_feedback[i];
+            _legController->commands[i].forceFeedForward = f_ff[i];
 
             // joint PD (zeroed out)
             _legController->commands[i].kpJoint = 0*Mat3<float>::Identity();
