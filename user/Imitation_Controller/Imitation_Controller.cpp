@@ -317,7 +317,7 @@ void Imitation_Controller::locomotion_ctrl()
     // compute ddp feedback control
     body_state.segment<3>(0) << seResult.rpy[2], seResult.rpy[1], seResult.rpy[0];
     body_state.segment<3>(3) = seResult.position;
-    body_state.segment<3>(6) = seResult.omegaWorld;
+    body_state.segment<3>(6) << seResult.omegaWorld[2], seResult.omegaWorld[1], seResult.omegaWorld[0];
     body_state.segment<3>(9) = seResult.vWorld;
     Vec12<float> ddp_feedback = ddp_feedback_gains * (des_body_state - body_state);
     Vec3<float> f_ff_feedback[4];
@@ -521,7 +521,7 @@ void Imitation_Controller::locomotion_ctrl()
             Vec3<float> G = G_full.segment(6 + i * 3, 3);
 
             // feedback terms: exponential error response
-            float wn = 30.0;
+            float wn = 20.0;
             float KpFoot = wn * wn;
             float KdFoot = 2 * wn;
             Vec3<float> pFootHip = _legController->datas[i].p;
