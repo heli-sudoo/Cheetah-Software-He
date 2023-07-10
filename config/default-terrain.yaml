@@ -69,12 +69,12 @@ box-2-DoubleJump:
     restitution: 0
     depth: 0.5401
     width: 0.5401
-    height: 0.2
-    position:  [0.64, 0, 0.1]
+    height: 0.12
+    position:  [0.64, 0, 0.06]
     orientation: [0,.0,0]  # roll pitch yaw
     transparent: 1
 
-# box-2-Diamond:
+# box-2L-Diamond:
     type: "box"
     mu: 0.7
     restitution: 0
@@ -85,7 +85,29 @@ box-2-DoubleJump:
     orientation: [0,.0,0]  # roll pitch yaw
     transparent: 1
 
-# box-2-AngledBox:
+# box-2R-Diamond:
+    type: "box"
+    mu: 0.7
+    restitution: 0
+    depth: 0.5401
+    width: 0.5401
+    height: 0.0001
+    position:  [0.64, -0.37, 0.0]
+    orientation: [0,.0,0]  # roll pitch yaw
+    transparent: 1
+
+# box-2-AngledBoxRight:
+    type: "box"
+    mu: 0.7
+    restitution: 0
+    depth: 0.6 #0.5401
+    width: 0.5401
+    height: 0.2
+    position:  [0.6401, -0.3374, 0.0015]
+    orientation: [-0.17453,0.0,0]  # roll pitch yaw
+    transparent: 0.1
+
+# box-2-AngledBoxLeft:
     type: "box"
     mu: 0.7
     restitution: 0

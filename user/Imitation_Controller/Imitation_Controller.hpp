@@ -14,6 +14,7 @@
 #include "extForce_t.hpp"
 
 #include <time.h>
+#include <utilities.h>
 
 using std::deque;
 class Imitation_Controller : public RobotController
@@ -59,7 +60,8 @@ private: //help functions
     void passive_mode();
 
     void draw_mpc_ref_data();
-    
+
+    void calculate_plane_coefficients();
 
 protected:
     ImitationUserParameters userParameters;
@@ -67,8 +69,7 @@ protected:
 public:
     // MPC
     deque<Vec24<float>> mpc_control_bag;
-    deque<Vec24<float>> joint_control_bag; // [qJ_des;qJd_des]
-    deque<Vec6<float>> terrain_info_bag; // [center_point;plane_coefficients]
+    deque<Vec6<float>> terrain_info_bag; // [center_point; eul_terrain]
     deque<Vec12<float>> des_body_state_bag;
     deque<DMat<float>> ddp_feedback_gains_bag;
     double mpc_time;
@@ -150,6 +151,7 @@ public:
 
     // terrain info
     Vec3<float> center_point;
+    Vec3<float> eul_terrain;
     Vec3<float> plane_coefficients;
 
 private:

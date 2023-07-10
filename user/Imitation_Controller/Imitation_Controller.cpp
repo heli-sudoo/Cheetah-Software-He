@@ -61,7 +61,7 @@ void Imitation_Controller::initializeController()
     mpc_time = 0;
     iter_loco = 0;
     iter_between_mpc_update = 0;
-    nsteps_between_mpc_update = 10;//5;//10;
+    nsteps_between_mpc_update = 10;
     yaw_flip_plus_times = 0;
     yaw_flip_mins_times = 0;
     raw_yaw_cur = _stateEstimate->rpy[2];
@@ -143,16 +143,6 @@ void Imitation_Controller::handleMPCcommand(const lcm::ReceiveBuffer *rbuf, cons
         pf_rel_com[l][0] = mpc_cmds.foot_placement_rel_com[3 * l];
         pf_rel_com[l][1] = mpc_cmds.foot_placement_rel_com[3 * l + 1];
         pf_rel_com[l][2] = mpc_cmds.foot_placement_rel_com[3 * l + 2];
-    }
-    // update desired joint angles and velocities
-    joint_control_bag.clear();
-    for (int i = 0; i < mpc_cmds.N_mpcsteps; i++){
-        Vec24<float> qJbar;
-        for (int j = 0; j < 12; j++){
-            qJbar[j] = mpc_cmds.qJ_ref[i][j];
-            qJbar[j+12] = mpc_cmds.qJd_ref[i][j];
-        }
-        joint_control_bag.push_back(qJbar);
     }
     // update terrain info
     terrain_info_bag.clear();
@@ -317,9 +307,13 @@ void Imitation_Controller::locomotion_ctrl()
     // compute ddp feedback control
     body_state.segment<3>(0) << seResult.rpy[2], seResult.rpy[1], seResult.rpy[0];
     body_state.segment<3>(3) = seResult.position;
-    body_state.segment<3>(6) << seResult.omegaBody[2], seResult.omegaBody[1], seResult.omegaBody[0];
+    body_state.segment<3>(6) = seResult.omegaBody;
     body_state.segment<3>(9) = seResult.vWorld;
     Vec12<float> ddp_feedback = ddp_feedback_gains * (des_body_state - body_state);
+
+    // terrain rotation matrix
+    Mat3<float> R_terrain;
+    EulerZYX_2_SO3(eul_terrain, R_terrain);
 
     // compute foot position and predicted GRF
     for (int l = 0; l < 4; l++)
@@ -329,18 +323,19 @@ void Imitation_Controller::locomotion_ctrl()
                    seResult.rBody.transpose() * (_quadruped->getHipLocation(l) + _legController->datas[l].p);
 
         // friction cone check
-        f_ff[l] = mpc_control.segment(3 * l, 3).cast<float>() - 0.1 * ddp_feedback.segment(3 * l, 3).cast<float>();
-        if (f_ff[l][2] < 0){
+        f_ff[l] = mpc_control.segment(3 * l, 3).cast<float>() - 0.2 * ddp_feedback.segment(3 * l, 3).cast<float>();
+        Vec3<float> f_ff_rotated = R_terrain.transpose() * f_ff[l];
+        if (f_ff_rotated[2] < 0){
             std::cout << "Zeroed force on leg " << l << " (fz < 0)." << std::endl;
             std::cout << "   Force: " << f_ff[l].transpose() << std::endl;
             f_ff[l].setZero();
         }
-        else if (pow(f_ff[l][0],2) + pow(f_ff[l][1],2) > 0.7 * pow(f_ff[l][2],2)){
+        else if (pow(f_ff_rotated[0],2) + pow(f_ff_rotated[1],2) > 0.7 * pow(f_ff_rotated[2],2)){
             std::cout << "Projected force on leg " << l << " back onto friction cone. " << std::endl;
             std::cout << "   Force (before): " << f_ff[l].transpose() << std::endl;
-            Vec3<float> fhat = Vec3<float> (f_ff[l][0], f_ff[l][1], sqrt(1/0.7 * (pow(f_ff[l][0],2) + pow(f_ff[l][1],2))));
-            f_ff[l] = f_ff[l].dot(fhat) / pow(fhat.norm(),2) * fhat;
-            std::cout << "   Force (after) : " << f_ff[l].transpose() << std::endl;
+            Vec3<float> fhat = Vec3<float> (f_ff_rotated[0], f_ff_rotated[1], sqrt(1/0.7 * (pow(f_ff_rotated[0],2) + pow(f_ff_rotated[1],2))));
+            f_ff[l] = R_terrain * (f_ff_rotated.dot(fhat) / pow(fhat.norm(),2) * fhat);
+            std::cout << "   Force (after): " << f_ff[l].transpose() << std::endl;
         }
 
         // get the predicted GRF in global frame and convert to body frame
@@ -419,13 +414,15 @@ void Imitation_Controller::locomotion_ctrl()
         pf_rel_com_filtered[i] = pf_rel_com_filtered[i] / pf_rel_com_filter_buffer[i].size();
         pDesLegFinal[i] = pf_rel_com_filtered[i] - seResult.rBody.transpose()*_quadruped->getHipLocation(i);
         
-        // float min_foot_dist = 0.2 - 0.05 * (center_point[2] > 1e-3);
+        // float min_foot_dist = 0.25 - 0.05 * (center_point[2] > 1e-3);
         float min_foot_dist = 0.25 - 0.1 * (center_point[2] > 1e-3);
-        if ((pDesLegFinal[i] + foot_offset).norm() < min_foot_dist
+        bool min_violation = (pDesLegFinal[i] + foot_offset).norm() < min_foot_dist;
+        float max_foot_dist = 0.4;
+        bool max_violation = (pDesLegFinal[i] + foot_offset).norm() > max_foot_dist;
+        if ((min_violation || max_violation)
             && !contactStatus[0] && !contactStatus[1] && !contactStatus[2] && !contactStatus[3]) 
-            // && swingState[0] < 0.5 && swingState[1] < 0.5 && swingState[2] < 0.5 && swingState[3] < 0.5)
         {
-            // solve quadratic eqn for c s.t. ||pf + c * vcom_td|| = 0.15 where c > 0
+            // solve quadratic eqn for c s.t. ||pf + k * vcom_td|| = 0.15 where k > 0
             float pf_x = pDesLegFinal[i][0];
             float pf_y = pDesLegFinal[i][1];
             float pf_z = pDesLegFinal[i][2];
@@ -434,12 +431,12 @@ void Imitation_Controller::locomotion_ctrl()
             float v_z = vcom_td[2];
             float a = v_x * v_x + v_y * v_y + v_z * v_z;
             float b = 2 * (pf_x * v_x + pf_y * v_y + pf_z * v_z);
-            float c = pf_x * pf_x + pf_y * pf_y + pf_z * pf_z - min_foot_dist * min_foot_dist;
+            float c = pf_x * pf_x + pf_y * pf_y + pf_z * pf_z - min_violation * (min_foot_dist * min_foot_dist) - max_violation * (max_foot_dist * max_foot_dist);
             float k = (-b + sqrt(b * b - 4 * a * c)) / (2 * a);
             Vec3<float> new_foot_offset = k * vcom_td;
             if (new_foot_offset.norm() > foot_offset.norm())
             {
-                foot_offset = new_foot_offset;
+                foot_offset = (min_violation - max_violation) * new_foot_offset;
             }
         }
         else if (contactStatus[0] && contactStatus[1] && contactStatus[2] && contactStatus[3])
@@ -664,8 +661,7 @@ bool Imitation_Controller::check_safety()
 {
     // Check orientation
     if (fabs(_stateEstimate->rpy(0)) >= PI/2 ||
-        fabs(_stateEstimate->rpy(1)) >= PI/2 ||
-        fabs(_stateEstimate->rpy(2)) >= PI/2)
+        fabs(_stateEstimate->rpy(1)) >= PI/2)
     {
         printf("Orientation safety check failed!\n");
         return false;
@@ -798,18 +794,9 @@ void Imitation_Controller::get_a_val_from_solution_bag()
             if (mpc_time < mpc_cmds.mpc_times[i + 1])
             {
                 mpc_control = mpc_control_bag[i];
-                for (int l = 0; l < 4; l++){
-                    qJ_des[l][0] = joint_control_bag[i][l*3];
-                    qJ_des[l][1] = joint_control_bag[i][l*3+1];
-                    qJ_des[l][2] = joint_control_bag[i][l*3+2];
-
-                    qJd_des[l][0] = joint_control_bag[i][l*3+12];
-                    qJd_des[l][1] = joint_control_bag[i][l*3+13];
-                    qJd_des[l][2] = joint_control_bag[i][l*3+14];
-                }
                 for (int j = 0; j < 3; j++){
                     center_point[j] = terrain_info_bag[i][j];
-                    plane_coefficients[j] = terrain_info_bag[i][j+3];
+                    eul_terrain[j] = terrain_info_bag[i][j+3];
                 }
                 des_body_state = des_body_state_bag[i];
                 ddp_feedback_gains = ddp_feedback_gains_bag[i];
@@ -821,6 +808,7 @@ void Imitation_Controller::get_a_val_from_solution_bag()
         }
     }
     mpc_cmd_mutex.unlock();
+    calculate_plane_coefficients();
 }
 
 void Imitation_Controller::draw_swing()
@@ -903,22 +891,22 @@ void Imitation_Controller::draw_mpc_ref_data()
     // }
 
     // add arrows for desired body velocity and true body velocity
-    scale = 5 * 0.025;
-    auto *bodyVelArrow = _visualizationData->addArrow();
-    bodyVelArrow->base_position = seResult.position;
-    bodyVelArrow->direction = scale * seResult.vWorld;
-    bodyVelArrow->color = {1.0, 0.0, 0.0, 0.6};
-    bodyVelArrow->shaft_width =  .005;
-    bodyVelArrow->head_length = .04;
-    bodyVelArrow->head_width = .015;
+    // scale = 5 * 0.025;
+    // auto *bodyVelArrow = _visualizationData->addArrow();
+    // bodyVelArrow->base_position = seResult.position;
+    // bodyVelArrow->direction = scale * seResult.vWorld;
+    // bodyVelArrow->color = {1.0, 0.0, 0.0, 0.6};
+    // bodyVelArrow->shaft_width =  .005;
+    // bodyVelArrow->head_length = .04;
+    // bodyVelArrow->head_width = .015;
 
-    auto *bodyVelDesArrow = _visualizationData->addArrow();
-    bodyVelDesArrow->base_position = seResult.position;
-    bodyVelDesArrow->direction = scale * des_body_state.segment(9,3);
-    bodyVelDesArrow->color = {0.0, 0.6, 0.0, 1.0};
-    bodyVelDesArrow->shaft_width =  .005;
-    bodyVelDesArrow->head_length = .04;
-    bodyVelDesArrow->head_width = .015;
+    // auto *bodyVelDesArrow = _visualizationData->addArrow();
+    // bodyVelDesArrow->base_position = seResult.position;
+    // bodyVelDesArrow->direction = scale * des_body_state.segment(9,3);
+    // bodyVelDesArrow->color = {0.0, 0.6, 0.0, 1.0};
+    // bodyVelDesArrow->shaft_width =  .005;
+    // bodyVelDesArrow->head_length = .04;
+    // bodyVelDesArrow->head_width = .015;
 
 }
 
@@ -1043,4 +1031,10 @@ float Imitation_Controller::GetGroundHeight(Vec3<float> p)
     Vec3<float> n = plane_coefficients;
     Vec3<float> c = center_point;
     return -1/n[2] * (n[0]*(p[0]-c[0]) + n[1]*(p[1]-c[1])) + c[2];
+}
+
+void Imitation_Controller::calculate_plane_coefficients(){
+    Mat3<float> R;
+    EulerZYX_2_SO3(eul_terrain, R);
+    plane_coefficients = R * Vec3<float>(0, 0, 1);
 }
