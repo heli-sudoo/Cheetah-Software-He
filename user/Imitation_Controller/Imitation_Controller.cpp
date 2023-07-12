@@ -97,9 +97,13 @@ void Imitation_Controller::initializeController()
         pf[foot].setZero();
 
         pf_filter_buffer[foot].clear();
+
+        pf_init[foot].setZero();
+        swing_traj_gen_states[foot] = 0;
     }
     ddp_feedback_gains.resize(12,12);
     foot_offset.setZero();
+    center_point.setZero();
 
     // start = clock();
 }
@@ -323,7 +327,10 @@ void Imitation_Controller::locomotion_ctrl()
                    seResult.rBody.transpose() * (_quadruped->getHipLocation(l) + _legController->datas[l].p);
 
         // friction cone check
-        f_ff[l] = mpc_control.segment(3 * l, 3).cast<float>() - 0.2 * ddp_feedback.segment(3 * l, 3).cast<float>();
+        f_ff[l] = mpc_control.segment(3 * l, 3).cast<float>() - 0.5 * ddp_feedback.segment(3 * l, 3).cast<float>();
+        // if (center_point[2] > 0.8) {
+        //     f_ff[l] = mpc_control.segment(3 * l, 3).cast<float>() - 0.0 * ddp_feedback.segment(3 * l, 3).cast<float>();
+        // }
         Vec3<float> f_ff_rotated = R_terrain.transpose() * f_ff[l];
         if (f_ff_rotated[2] < 0){
             std::cout << "Zeroed force on leg " << l << " (fz < 0)." << std::endl;
@@ -415,35 +422,91 @@ void Imitation_Controller::locomotion_ctrl()
         pDesLegFinal[i] = pf_rel_com_filtered[i] - seResult.rBody.transpose()*_quadruped->getHipLocation(i);
         
         // float min_foot_dist = 0.25 - 0.05 * (center_point[2] > 1e-3);
-        float min_foot_dist = 0.25 - 0.1 * (center_point[2] > 1e-3);
-        bool min_violation = (pDesLegFinal[i] + foot_offset).norm() < min_foot_dist;
-        float max_foot_dist = 0.4;
-        bool max_violation = (pDesLegFinal[i] + foot_offset).norm() > max_foot_dist;
-        if ((min_violation || max_violation)
-            && !contactStatus[0] && !contactStatus[1] && !contactStatus[2] && !contactStatus[3]) 
+        float min_foot_dist = 0.25 - 0.1 * (pf_init[i][2] < pf_filtered[i][2]) - 0.05 * (pf_init[i][2] > pf_filtered[i][2]);
+        float max_foot_dist = 0.3 - 0.05 *  (pf_init[i][2] > pf_filtered[i][2]);    
+        if (contactStatus[0] && contactStatus[1] && contactStatus[2] && contactStatus[3])
         {
-            // solve quadratic eqn for c s.t. ||pf + k * vcom_td|| = 0.15 where k > 0
-            float pf_x = pDesLegFinal[i][0];
-            float pf_y = pDesLegFinal[i][1];
-            float pf_z = pDesLegFinal[i][2];
-            float v_x = vcom_td[0];
-            float v_y = vcom_td[1];
-            float v_z = vcom_td[2];
-            float a = v_x * v_x + v_y * v_y + v_z * v_z;
-            float b = 2 * (pf_x * v_x + pf_y * v_y + pf_z * v_z);
-            float c = pf_x * pf_x + pf_y * pf_y + pf_z * pf_z - min_violation * (min_foot_dist * min_foot_dist) - max_violation * (max_foot_dist * max_foot_dist);
-            float k = (-b + sqrt(b * b - 4 * a * c)) / (2 * a);
-            Vec3<float> new_foot_offset = k * vcom_td;
-            if (new_foot_offset.norm() > foot_offset.norm())
-            {
-                foot_offset = (min_violation - max_violation) * new_foot_offset;
+            foot_offsets[i].setZero();
+            foot_offset.setZero();
+            swing_traj_gen_states[i] = 0; // normal operation
+        }
+        else
+        {
+            bool min_violation = (pDesLegFinal[i] + foot_offsets[i]).norm() < min_foot_dist;
+            bool max_violation = (pDesLegFinal[i] + foot_offsets[i]).norm() > max_foot_dist; // only if jumping down
+            swing_traj_gen_states[i] = min_violation + max_violation * 2;
+            if (min_violation || max_violation){
+                float pf_x = pDesLegFinal[i][0];
+                float pf_y = pDesLegFinal[i][1];
+                float pf_z = pDesLegFinal[i][2];
+                float v_x = vcom_td[0];
+                float v_y = vcom_td[1];
+                float v_z = vcom_td[2];
+                float a = v_x * v_x + v_y * v_y + v_z * v_z;
+                float b = 2 * (pf_x * v_x + pf_y * v_y + pf_z * v_z);
+                float c = pf_x * pf_x + pf_y * pf_y + pf_z * pf_z - min_violation * (min_foot_dist * min_foot_dist) - max_violation * (max_foot_dist * max_foot_dist);
+                float k = (-b + sqrt(b * b - 4 * a * c)) / (2 * a);
+                foot_offsets[i] = k * vcom_td;
             }
         }
-        else if (contactStatus[0] && contactStatus[1] && contactStatus[2] && contactStatus[3])
-        {
+        // if ((min_violation || max_violation)
+        //     && !contactStatus[0] && !contactStatus[1] && !contactStatus[2] && !contactStatus[3]) 
+        // {
+        //     // solve quadratic eqn for c s.t. ||pf + k * vcom_td|| = 0.15 where k > 0
+        //     float pf_x = pDesLegFinal[i][0];
+        //     float pf_y = pDesLegFinal[i][1];
+        //     float pf_z = pDesLegFinal[i][2];
+        //     float v_x = vcom_td[0];
+        //     float v_y = vcom_td[1];
+        //     float v_z = vcom_td[2];
+        //     float a = v_x * v_x + v_y * v_y + v_z * v_z;
+        //     float b = 2 * (pf_x * v_x + pf_y * v_y + pf_z * v_z);
+        //     float c = pf_x * pf_x + pf_y * pf_y + pf_z * pf_z - min_violation * (min_foot_dist * min_foot_dist) - max_violation * (max_foot_dist * max_foot_dist);
+        //     float k = (-b + sqrt(b * b - 4 * a * c)) / (2 * a);
+        //     Vec3<float> new_foot_offset = k * vcom_td;
+        //     if (new_foot_offset.norm() > foot_offset.norm())
+        //     {
+        //         foot_offset = (min_violation - max_violation) * new_foot_offset;
+        //     }
+        // }
+        // else if (contactStatus[0] && contactStatus[1] && contactStatus[2] && contactStatus[3])
+        // {
+        //     foot_offset.setZero();
+        // }
+        
+        
+        // pDesLegFinal[i] += foot_offset;
+    }
+
+    bool min_violation_mode = swing_traj_gen_states[0] == 1 || swing_traj_gen_states[1] == 1 || swing_traj_gen_states[2] == 1 || swing_traj_gen_states[3] == 1;
+    bool max_violation_mode = !min_violation_mode && (swing_traj_gen_states[0] == 2 || swing_traj_gen_states[1] == 2 || swing_traj_gen_states[2] == 2 || swing_traj_gen_states[3] == 2);
+    if (!(min_violation_mode || max_violation_mode))
+    {
+        swing_traj_gen_state = 0;
+    }
+    else if (min_violation_mode){
+        if (swing_traj_gen_state != 1){
+            swing_traj_gen_state = 1;
             foot_offset.setZero();
+            std::cout << "min violation" << std::endl;
         }
-        pDesLegFinal[i] += foot_offset;
+        for (int i = 0; i < 4; i++){
+            if (swing_traj_gen_states[i] == 1 && foot_offsets[i].norm() > foot_offset.norm()){
+                foot_offset = foot_offsets[i];
+            }
+        }
+    }
+    else if (max_violation_mode){
+        if (swing_traj_gen_state != 2){
+            swing_traj_gen_state = 2;
+            foot_offset.setZero();
+            std::cout << "max violation" << std::endl;
+        }
+        for (int i = 0; i < 4; i++){
+            if (swing_traj_gen_states[i] == 2 && foot_offsets[i].norm() > foot_offset.norm()){
+                foot_offset = foot_offsets[i];
+            }
+        }
     }
 
     for (int i = 0; i < 4; i++)
@@ -451,6 +514,7 @@ void Imitation_Controller::locomotion_ctrl()
         // if the leg is in swing
         if (!contactStatus[i])
         {
+            pDesLegFinal[i] += foot_offset;
             footSwingTrajectories[i].setHeight(swing_heights[i]);
 
             swingTimes[i] = statusTimes[i];
@@ -463,6 +527,7 @@ void Imitation_Controller::locomotion_ctrl()
                 firstSwing[i] = false;
                 swingTimesRemain[i] = swingTimes[i];
                 footSwingTrajectories[i].setInitialPosition(seResult.rBody.transpose()*_legController->datas[i].p);
+                pf_init[i] = seResult.position + seResult.rBody.transpose()*(_legController->datas[i].p + _quadruped->getHipLocation(i));
                 contact_detector_ready = false;
                 early_contact[i] = false;
             }
@@ -518,6 +583,7 @@ void Imitation_Controller::locomotion_ctrl()
 
             // feedback terms: exponential error response
             float wn = 20.0;
+            // float wn = 30.0;
             float KpFoot = wn * wn;
             float KdFoot = 2 * wn;
             Vec3<float> pFootHip = _legController->datas[i].p;

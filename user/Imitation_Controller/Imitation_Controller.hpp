@@ -154,6 +154,8 @@ public:
     Vec3<float> eul_terrain;
     Vec3<float> plane_coefficients;
 
+    Vec3<float> pf_init[4];
+
 private:
     Vec24<float> mpc_control;
     Vec12<float> des_body_state;
@@ -183,7 +185,10 @@ private:
     bool shortened_flight = false;
 
     Vec3<float> vcom_td;
+    Vec3<float> foot_offsets[4];
     Vec3<float> foot_offset;
+    int swing_traj_gen_states[4]; // 0: normal, 1: min_violation, max_violation
+    int swing_traj_gen_state = 0;
 
     clock_t start;
     clock_t end;

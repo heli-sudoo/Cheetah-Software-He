@@ -52,7 +52,7 @@ box-1:
     orientation: [0,.0,0]  # roll pitch yaw
     transparent: 1
 
-box-2-DoubleJump:
+# box-2-DoubleJump:
     type: "box"
     mu: 0.7
     restitution: 0
@@ -63,14 +63,14 @@ box-2-DoubleJump:
     orientation: [0,.0,0]  # roll pitch yaw
     transparent: 1
 
-# box-2-BoxJump:
+box-2-BoxJump:
     type: "box"
     mu: 0.7
     restitution: 0
-    depth: 0.5401
-    width: 0.5401
-    height: 0.12
-    position:  [0.64, 0, 0.06]
+    depth: 0.645
+    width: 0.555
+    height: 0.14
+    position:  [0.6925, 0, 0.07]
     orientation: [0,.0,0]  # roll pitch yaw
     transparent: 1
 
@@ -103,7 +103,7 @@ box-2-DoubleJump:
     depth: 0.6 #0.5401
     width: 0.5401
     height: 0.2
-    position:  [0.6401, -0.3374, 0.0015]
+    position:  [0.6925, -0.3374, 0.0015]
     orientation: [-0.17453,0.0,0]  # roll pitch yaw
     transparent: 0.1
 
@@ -114,11 +114,12 @@ box-2-DoubleJump:
     depth: 0.5401
     width: 0.5401
     height: 0.2
-    position:  [0.6401, 0.3374, 0.0015]
+    # position:  [0.6925, 0.3374, 0.0015]
+    position:  [0.7425, 0.3374, 0.0015] # clean
     orientation: [0.17453,0.0,0]  # roll pitch yaw
     transparent: 0.1
 
-box-3:
+# box-3:
     type: "box"
     mu: 0.7
     restitution: 0
@@ -129,6 +130,28 @@ box-3:
     orientation: [0,.0,0]  # roll pitch yaw
     transparent: 1
     
+box-3-OnBoxOffBox:
+    type: "box"
+    mu: 0.7
+    restitution: 0
+    depth: 0.5401
+    width: 0.5401
+    height: 0.0001
+    position:  [1.46, 0, 0.0]
+    orientation: [0,.0,0]  # roll pitch yaw
+    transparent: 1
+
+# box-3-AngledBoxLeft:
+    type: "box"
+    mu: 0.7
+    restitution: 0
+    depth: 0.5401
+    width: 0.5401
+    height: 0.0001
+    position:  [1.46, 0, 0.0]
+    orientation: [0,.0,0]  # roll pitch yaw
+    transparent: 1
+
 #stairs-1:
     type: "stairs"
     steps: 5
