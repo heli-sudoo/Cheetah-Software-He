@@ -1974,7 +1974,7 @@ BooleanType QProblemB::isCPUtimeLimitExceeded(	const real_t* const cputime,
 												) const
 {
 	/* Always perform next QP iteration if no CPU time limit is given. */
-	if ( cputime == 0 )
+	if ( *cputime < (real_t)1e-4 )
 		return BT_FALSE;
 
 	/* Always perform first QP iteration. */

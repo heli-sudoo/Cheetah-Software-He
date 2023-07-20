@@ -30,7 +30,7 @@ ground-plane:
     #heightmap_file_name: "../optimization/optimization_data/2019-03-05-00_00_03/heightmap.txt"
     heightmap_file_name: "../algorithms/optimization/saved_optimization_data/2019-03-05-00_00_03_2/HeightMap.txt"
 
-box-1:
+# box-1:
     type: "box"
     mu: 0.7
     restitution: 0
@@ -38,17 +38,6 @@ box-1:
     width: 0.5401
     height: 0.0001
     position:  [0.0, 0, 0.0]
-    orientation: [0,.0,0]  # roll pitch yaw
-    transparent: 1
-
-# obstacle-1:
-    type: "box"
-    mu: 0.7
-    restitution: 0
-    depth: 0.01
-    width: 0.5401
-    height: 0.2
-    position:  [0.32, 0, 0.0]
     orientation: [0,.0,0]  # roll pitch yaw
     transparent: 1
 
@@ -63,7 +52,18 @@ box-1:
     orientation: [0,.0,0]  # roll pitch yaw
     transparent: 1
 
-box-2-BoxJump:
+# box-3:
+    type: "box"
+    mu: 0.7
+    restitution: 0
+    depth: 0.5401
+    width: 0.5401
+    height: 0.0001
+    position:  [1.28, 0, 0.0]
+    orientation: [0,.0,0]  # roll pitch yaw
+    transparent: 1
+
+# box-2-BoxJump:
     type: "box"
     mu: 0.7
     restitution: 0
@@ -71,6 +71,73 @@ box-2-BoxJump:
     width: 0.555
     height: 0.14
     position:  [0.6925, 0, 0.07]
+    orientation: [0,.0,0]  # roll pitch yaw
+    transparent: 1
+
+# box-3-OnBoxOffBox:
+    type: "box"
+    mu: 0.7
+    restitution: 0
+    depth: 0.5401
+    width: 0.5401
+    height: 0.0001
+    position:  [1.46, 0, 0.0]
+    orientation: [0,.0,0]  # roll pitch yaw
+    transparent: 1
+
+box-1-AngledBoxRight:
+    type: "box"
+    mu: 0.7
+    restitution: 0
+    depth: 0.7
+    width: 0.7
+    height: 0.0001
+    position:  [0.0, 0, 0.0]
+    orientation: [0,.0,0]  # roll pitch yaw
+    transparent: 1
+
+box-2-AngledBoxRight:
+    type: "box"
+    mu: 0.7
+    restitution: 0
+    depth: 0.65
+    width: 0.65
+    height: 0.22
+    position:  [0.725, -0.3941, 0.0017]
+    orientation: [-0.17453,0.0,0]  # roll pitch yaw
+    transparent: 0.1
+
+box-3-AngledBoxRight:
+    type: "box"
+    mu: 0.7
+    restitution: 0
+    depth: 0.7
+    width: 0.7
+    height: 0.0001
+    position:  [1.45, 0, 0.0]
+    orientation: [0,.0,0]  # roll pitch yaw
+    transparent: 1
+
+
+# box-3-AngledToBoxToGround:
+    type: "box"
+    mu: 0.7
+    restitution: 0
+    depth: 0.645
+    width: 0.555
+    height: 0.14
+    position:  [1.4225, 0, 0.07]
+    orientation: [0,.0,0]  # roll pitch yaw
+    transparent: 1
+
+# box-4-AngledToBoxToGround:
+    type: "box"
+    mu: 0.7
+    restitution: 0
+    depth: 0.7
+    width: 0.7
+    height: 0.0001
+    position:  [2.145, 0, 0.0]
     orientation: [0,.0,0]  # roll pitch yaw
     transparent: 1
 
@@ -96,86 +163,14 @@ box-2-BoxJump:
     orientation: [0,.0,0]  # roll pitch yaw
     transparent: 1
 
-# box-2-AngledBoxRight:
+
+# obstacle-1:
     type: "box"
     mu: 0.7
     restitution: 0
-    depth: 0.6 #0.5401
+    depth: 0.01
     width: 0.5401
     height: 0.2
-    position:  [0.6925, -0.3374, 0.0015]
-    orientation: [-0.17453,0.0,0]  # roll pitch yaw
-    transparent: 0.1
-
-# box-2-AngledBoxLeft:
-    type: "box"
-    mu: 0.7
-    restitution: 0
-    depth: 0.5401
-    width: 0.5401
-    height: 0.2
-    # position:  [0.6925, 0.3374, 0.0015]
-    position:  [0.7425, 0.3374, 0.0015] # clean
-    orientation: [0.17453,0.0,0]  # roll pitch yaw
-    transparent: 0.1
-
-# box-3:
-    type: "box"
-    mu: 0.7
-    restitution: 0
-    depth: 0.5401
-    width: 0.5401
-    height: 0.0001
-    position:  [1.28, 0, 0.0]
+    position:  [0.32, 0, 0.0]
     orientation: [0,.0,0]  # roll pitch yaw
     transparent: 1
-    
-box-3-OnBoxOffBox:
-    type: "box"
-    mu: 0.7
-    restitution: 0
-    depth: 0.5401
-    width: 0.5401
-    height: 0.0001
-    position:  [1.46, 0, 0.0]
-    orientation: [0,.0,0]  # roll pitch yaw
-    transparent: 1
-
-# box-3-AngledBoxLeft:
-    type: "box"
-    mu: 0.7
-    restitution: 0
-    depth: 0.5401
-    width: 0.5401
-    height: 0.0001
-    position:  [1.46, 0, 0.0]
-    orientation: [0,.0,0]  # roll pitch yaw
-    transparent: 1
-
-#stairs-1:
-    type: "stairs"
-    steps: 5
-    rise: 0.1 #0.1778 # 7 inches
-    run: 0.17 #0.2794 # 11 inches
-    width: 1.2
-    mu: .7
-    restitution: 0
-    #position: [0.5, 0, -0.52]
-    position: [0.5, 0, 0.0]
-    orientation: [0, 0, 0]
-    transparent: 0
-
-#stairs-2:
-    #type: "stairs"
-    #steps: 8
-    #rise: 0.1778 # 7 inches
-    #run: 0.2794 # 11 inches
-    #width: 1.2
-    #mu: .7
-    #restitution: 0
-    #position: [1,-2,-0.5]
-    #orientation: [.2, -.4, 1.5]
-    #transparent: 0
-
-
-

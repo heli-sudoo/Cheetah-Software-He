@@ -7,7 +7,8 @@
  */
 
 #include <main_helper.h>
-#include "Imitation_Controller.hpp"
+// #include "Imitation_Controller.hpp"
+#include "Imitation_Controller_With_QP.hpp"
 
 int main(int argc, char** argv) {
   main_helper(argc, argv, new Imitation_Controller());

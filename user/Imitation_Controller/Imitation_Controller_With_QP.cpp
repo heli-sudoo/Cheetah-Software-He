@@ -1,4 +1,4 @@
-#include "Imitation_Controller.hpp"
+#include "Imitation_Controller_With_QP.hpp"
 #include "cTypes.h"
 #include "utilities.h"
 #include <unistd.h>
@@ -8,6 +8,8 @@
 
 #define DRAW_PLAN
 #define PI 3.1415926
+
+using namespace qpOASES;
 
 enum CONTROL_MODE
 {
@@ -106,6 +108,53 @@ void Imitation_Controller::initializeController()
     center_point.setZero();
 
     // start = clock();
+
+    // initialize qp
+    solver = SQProblem(NUM_VARIABLES_QP, NUM_CONSTRAINTS_QP);
+    Options options;
+    options.printLevel = PL_NONE;
+    solver.setOptions(options);
+
+    H_eigen.resize(NUM_VARIABLES_QP, NUM_VARIABLES_QP);
+    g_eigen.resize(NUM_VARIABLES_QP, 1);
+    xOpt_eigen.resize(NUM_VARIABLES_QP);
+
+    for (int i = 0; i < NUM_VARIABLES_QP; i++){
+        lb_qpOASES[i] = -1000000.0;
+        ub_qpOASES[i] = 1000000.0;
+    }
+    
+    DMat<real_t> A_fc = DMat<real_t>::Zero(5,3);
+    A_fc << 0, 0,  1,
+            1, 0, -mu/sqrt(2),
+            1, 0,  mu/sqrt(2),
+            0, 1, -mu/sqrt(2),
+            0, 1,  mu/sqrt(2);
+    A_eigen.resize(NUM_CONSTRAINTS_QP, NUM_VARIABLES_QP);
+    A_eigen.setZero();
+    for (int leg = 0; leg < 4; leg++){
+        A_eigen.block(5*leg, 3*leg, 5, 3) = A_fc;
+
+        lbA_qpOASES[5*leg+0] = 10.0;
+        lbA_qpOASES[5*leg+1] = -1000000.0;
+        lbA_qpOASES[5*leg+2] = 0.0;
+        lbA_qpOASES[5*leg+3] = -1000000.0;
+        lbA_qpOASES[5*leg+4] = 0.0;
+
+        ubA_qpOASES[5*leg+0] = 160.0;
+        ubA_qpOASES[5*leg+1] = 0.0;
+        ubA_qpOASES[5*leg+2] = 1000000.0;
+        ubA_qpOASES[5*leg+3] = 0.0;
+        ubA_qpOASES[5*leg+4] = 1000000.0;
+    }
+    copy_Eigen_to_real_t(A_qpOASES, A_eigen, NUM_CONSTRAINTS_QP, NUM_VARIABLES_QP);
+
+    A_control.resize(6,12);
+    A_control.setZero();
+    S_control = Vec6<real_t>(300.0,200.0,100.0,1.0,1.0,1.0).asDiagonal();
+    // S_control = Vec6<real_t>(30.0,20.0,10.0,1.0,1.0,10.0).asDiagonal();
+    b_control.setZero();
+
 }
 
 void Imitation_Controller::handleMPCLCMthread()
@@ -283,7 +332,8 @@ void Imitation_Controller::locomotion_ctrl()
 
     is_safe = is_safe && check_safety();
 
-    float hop_time = 3.0;
+    // float hop_time = 3.0;
+    float hop_time = 5.0;
     if (!is_safe ||
         iter_loco * _controlParameters->controller_dt >= hop_time)
     {
@@ -320,6 +370,7 @@ void Imitation_Controller::locomotion_ctrl()
     EulerZYX_2_SO3(eul_terrain, R_terrain);
 
     // compute foot position and predicted GRF
+    b_solve_qp = false;
     for (int l = 0; l < 4; l++)
     {
         // compute the actual foot positions
@@ -327,41 +378,29 @@ void Imitation_Controller::locomotion_ctrl()
                    seResult.rBody.transpose() * (_quadruped->getHipLocation(l) + _legController->datas[l].p);
 
         // friction cone check
-        // previously using 0.5 feedback for all the level awesomeness
         f_ff[l] = mpc_control.segment(3 * l, 3).cast<float>() - 0.5 * ddp_feedback.segment(3 * l, 3).cast<float>();
 
-        bool check_feedback = false;
         Vec3<float> f_ff_rotated = R_terrain.transpose() * f_ff[l];
-        if (f_ff_rotated[2] < 0){
-            std::cout << "Zeroed force on leg " << l << " (fz < 0)." << std::endl;
-            std::cout << "   Force  : " << f_ff[l].transpose() << std::endl;
-            std::cout << "   Rotated: " << f_ff_rotated.transpose() << std::endl;
-            f_ff[l].setZero();
-            check_feedback = true;
-        }
-        else if (pow(f_ff_rotated[0],2) + pow(f_ff_rotated[1],2) > 0.7 * pow(f_ff_rotated[2],2)){
-            std::cout << "Projected force on leg " << l << " back onto friction cone. " << std::endl;
-            std::cout << "   Force (before): " << f_ff[l].transpose() << std::endl;
-            Vec3<float> fhat = Vec3<float> (f_ff_rotated[0], f_ff_rotated[1], sqrt(1/0.7 * (pow(f_ff_rotated[0],2) + pow(f_ff_rotated[1],2))));
-            f_ff[l] = R_terrain * (f_ff_rotated.dot(fhat) / pow(fhat.norm(),2) * fhat);
-            std::cout << "   Force (after): " << f_ff[l].transpose() << std::endl;
-        }
-
-        if (check_feedback){
-            f_ff[l] = -0.5 * ddp_feedback.segment(3 * l, 3).cast<float>();
-            f_ff_rotated = R_terrain.transpose() * f_ff[l];
-            if (f_ff_rotated[2] < 0){
-                f_ff[l].setZero();
-            }
-            else if (pow(f_ff_rotated[0],2) + pow(f_ff_rotated[1],2) > 0.7 * pow(f_ff_rotated[2],2)){
-                Vec3<float> fhat = Vec3<float> (f_ff_rotated[0], f_ff_rotated[1], sqrt(1/0.7 * (pow(f_ff_rotated[0],2) + pow(f_ff_rotated[1],2))));
-                f_ff[l] = R_terrain * (f_ff_rotated.dot(fhat) / pow(fhat.norm(),2) * fhat);
-            }
-            std::cout << "   new force: " << f_ff[l].transpose() << std::endl;
+        if (f_ff_rotated[2] < 0 || (pow(f_ff_rotated[0],2) + pow(f_ff_rotated[1],2) > (float) mu * pow(f_ff_rotated[2],2))){
+            b_solve_qp = true;
         }
 
         // get the predicted GRF in global frame and convert to body frame
         f_ff[l] = -seResult.rBody * f_ff[l];
+    }
+
+    if (b_solve_qp){
+        Vec12<real_t> r;
+        for (int leg = 0; leg < 4; leg++){
+            r.segment(3*leg, 3) = pFoot[leg].cast<real_t>() - seResult.position.cast<real_t>();
+        }
+        Vec12<real_t> f = mpc_control.segment(0, 12).cast<real_t>() - 0.5 * ddp_feedback.cast<real_t>();
+        set_problem_data(r, f, R_terrain.cast<real_t>());
+        std::cout << "Solving QP" << std::endl;
+        solve_qp();
+        for (int leg = 0; leg < 4; leg++){
+            f_ff[leg] = -seResult.rBody * xOpt_eigen.segment(3*leg, 3).cast<float>();
+        }
     }
 
     // set swing trajectory parameters
@@ -436,8 +475,7 @@ void Imitation_Controller::locomotion_ctrl()
         pf_rel_com_filtered[i] = pf_rel_com_filtered[i] / pf_rel_com_filter_buffer[i].size();
         pDesLegFinal[i] = pf_rel_com_filtered[i] - seResult.rBody.transpose()*_quadruped->getHipLocation(i);
         
-        // float min_foot_dist = 0.25 - 0.05 * (center_point[2] > 1e-3);
-        float min_foot_dist = 0.25 - 0.1 * (pf_init[i][2] < pf_filtered[i][2]);
+        float min_foot_dist = 0.25 + (-0.1 + 0*0.05 * (abs(eul_terrain[0]) > 1e-3 || abs(eul_terrain[1]) > 1e-3)) * (pf_init[i][2] < pf_filtered[i][2]);
         float max_foot_dist = 0.4 - 0.05 *  (pf_init[i][2] > pf_filtered[i][2]);    
         if (contactStatus[0] && contactStatus[1] && contactStatus[2] && contactStatus[3])
         {
@@ -464,33 +502,6 @@ void Imitation_Controller::locomotion_ctrl()
                 foot_offsets[i] = k * vcom_td;
             }
         }
-        // if ((min_violation || max_violation)
-        //     && !contactStatus[0] && !contactStatus[1] && !contactStatus[2] && !contactStatus[3]) 
-        // {
-        //     // solve quadratic eqn for c s.t. ||pf + k * vcom_td|| = 0.15 where k > 0
-        //     float pf_x = pDesLegFinal[i][0];
-        //     float pf_y = pDesLegFinal[i][1];
-        //     float pf_z = pDesLegFinal[i][2];
-        //     float v_x = vcom_td[0];
-        //     float v_y = vcom_td[1];
-        //     float v_z = vcom_td[2];
-        //     float a = v_x * v_x + v_y * v_y + v_z * v_z;
-        //     float b = 2 * (pf_x * v_x + pf_y * v_y + pf_z * v_z);
-        //     float c = pf_x * pf_x + pf_y * pf_y + pf_z * pf_z - min_violation * (min_foot_dist * min_foot_dist) - max_violation * (max_foot_dist * max_foot_dist);
-        //     float k = (-b + sqrt(b * b - 4 * a * c)) / (2 * a);
-        //     Vec3<float> new_foot_offset = k * vcom_td;
-        //     if (new_foot_offset.norm() > foot_offset.norm())
-        //     {
-        //         foot_offset = (min_violation - max_violation) * new_foot_offset;
-        //     }
-        // }
-        // else if (contactStatus[0] && contactStatus[1] && contactStatus[2] && contactStatus[3])
-        // {
-        //     foot_offset.setZero();
-        // }
-        
-        
-        // pDesLegFinal[i] += foot_offset;
     }
 
     bool min_violation_mode = swing_traj_gen_states[0] == 1 || swing_traj_gen_states[1] == 1 || swing_traj_gen_states[2] == 1 || swing_traj_gen_states[3] == 1;
@@ -1124,4 +1135,60 @@ void Imitation_Controller::calculate_plane_coefficients(){
     Mat3<float> R;
     EulerZYX_2_SO3(eul_terrain, R);
     plane_coefficients = R * Vec3<float>(0, 0, 1);
+}
+
+void Imitation_Controller::set_problem_data(Vec12<real_t> r, Vec12<real_t> f, Mat3<real_t> R_terrain){
+    // x.T*H*x + g.T*x = |Fd - F|^2 + x.T*R*x
+    // F = [sum(r x f), sum(f)]
+    for (int leg = 0; leg < 4; leg++){
+        R_terrain_block.block(3*leg, 3*leg, 3, 3) = R_terrain;
+    }
+    r = R_terrain_block.transpose() * r; // to terrain frame
+    f = R_terrain_block.transpose() * f; // to terrain frame
+
+    A_control.setZero();
+    for (int leg = 0; leg < 4; leg++){
+        A_control.block(0,3*leg,3,3) <<             0, -r[leg*3 + 2],  r[leg*3 + 1],
+                                         r[leg*3 + 2],             0,     -r[leg*3],
+                                        -r[leg*3 + 1],      r[leg*3],             0;
+        A_control.block(3,3*leg,3,3) = Mat3<real_t>::Identity();
+    }
+
+    b_control.setZero();
+    for (int leg = 0; leg < 4; leg++){
+        Vec3<real_t> r_leg = r.segment(3*leg,3);
+        Vec3<real_t> f_leg = f.segment(3*leg,3);
+        b_control.segment(0,3) += r_leg.cross(f_leg);
+        b_control.segment(3,3) += f_leg;
+    }
+
+    Mat12<real_t> grf_reg = 0.001 * Mat12<real_t>::Identity();
+    H_eigen = 2 * (A_control.transpose() * S_control * A_control + grf_reg);
+    g_eigen = -2 * A_control.transpose() * S_control * b_control;
+
+    copy_Eigen_to_real_t(H_qpOASES, H_eigen, NUM_VARIABLES_QP, NUM_VARIABLES_QP);
+    copy_Eigen_to_real_t(g_qpOASES, g_eigen, NUM_VARIABLES_QP, 1);
+    DMat<real_t> xOpt_initialGuess_eigen = DMat<real_t>(NUM_VARIABLES_QP, 1);
+    xOpt_initialGuess_eigen = f;
+    copy_Eigen_to_real_t(xOpt_initialGuess, xOpt_initialGuess_eigen, NUM_VARIABLES_QP, 1);
+}
+
+void Imitation_Controller::solve_qp(){
+    nWSR = 100;
+    cpu_time = 0.0;
+
+    int_t new_nWSR = 100;
+    solver.init(H_qpOASES, g_qpOASES, A_qpOASES, lb_qpOASES, ub_qpOASES, lbA_qpOASES, ubA_qpOASES, new_nWSR, &cpu_time, xOpt_initialGuess);
+
+    std::cout << "cpu_time: " << cpu_time << std::endl;
+
+    solver.getPrimalSolution(xOpt_qpOASES);
+    copy_real_t_to_Eigen(xOpt_eigen, xOpt_qpOASES, NUM_VARIABLES_QP);
+
+    std::cout << "wrench        : " << (A_control * xOpt_eigen).transpose() << std::endl;
+    std::cout << "desired wrench: " << b_control.transpose() << std::endl;
+
+    xOpt_eigen = R_terrain_block * xOpt_eigen; // to world frame
+
+    solver.reset();
 }
