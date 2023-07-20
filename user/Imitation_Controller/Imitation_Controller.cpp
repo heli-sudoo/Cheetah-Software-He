@@ -460,7 +460,10 @@ void Imitation_Controller::locomotion_ctrl()
                 float a = v_x * v_x + v_y * v_y + v_z * v_z;
                 float b = 2 * (pf_x * v_x + pf_y * v_y + pf_z * v_z);
                 float c = pf_x * pf_x + pf_y * pf_y + pf_z * pf_z - min_violation * (min_foot_dist * min_foot_dist) - max_violation * (max_foot_dist * max_foot_dist);
-                float k = (-b + sqrt(b * b - 4 * a * c)) / (2 * a);
+                float k = 0;
+                if (a > 0){
+                    k = (-b + sqrt(b * b - 4 * a * c)) / (2 * a);
+                }
                 foot_offsets[i] = k * vcom_td;
             }
         }
@@ -607,12 +610,7 @@ void Imitation_Controller::locomotion_ctrl()
             Vec3<float> tau = J.transpose() * Lambda * (aDesFootWorld - 0*JdqJd) + CqJd + G;
             
             if (abs(tau[0]) > 18.0 || abs(tau[1]) > 18.0 || abs(tau[2]) > 18.0){
-                // std::cout << "Pushed torque limits during swing. " << std::endl;
-                bool check_sign_flip = tau[0] > 0;
                 tau = 18 / std::max(std::max(abs(tau.normalized()[0]),abs(tau.normalized()[1])),abs(tau.normalized()[2])) * tau.normalized();
-                if (!(check_sign_flip == tau[0] > 0)){
-                    tau = -tau;
-                }
             }
 
             _legController->commands[i].tauFeedForward = tau;
@@ -747,8 +745,7 @@ void Imitation_Controller::address_yaw_ambiguity()
 bool Imitation_Controller::check_safety()
 {
     // Check orientation
-    if (fabs(_stateEstimate->rpy(0)) >= PI/2 ||
-        fabs(_stateEstimate->rpy(1)) >= PI/2)
+    if (abs(_stateEstimate->rpy(0)) >= PI/2 || abs(_stateEstimate->rpy(1)) >= PI/2)
     {
         printf("Orientation safety check failed!\n");
         return false;
