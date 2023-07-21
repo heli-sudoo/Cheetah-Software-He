@@ -225,10 +225,6 @@ private:
     bool b_solve_qp = false;
     SQProblem solver;
 
-    int_t nWSR;
-
-    real_t cpu_time;
-
     static const int NUM_VARIABLES_QP = 12;
     static const int NUM_CONSTRAINTS_QP = 20;
     real_t H_qpOASES[NUM_VARIABLES_QP * NUM_VARIABLES_QP];

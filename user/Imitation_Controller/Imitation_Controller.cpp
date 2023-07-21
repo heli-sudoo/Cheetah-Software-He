@@ -610,7 +610,8 @@ void Imitation_Controller::locomotion_ctrl()
             Vec3<float> tau = J.transpose() * Lambda * (aDesFootWorld - 0*JdqJd) + CqJd + G;
             
             if (abs(tau[0]) > 18.0 || abs(tau[1]) > 18.0 || abs(tau[2]) > 18.0){
-                tau = 18 / std::max(std::max(abs(tau.normalized()[0]),abs(tau.normalized()[1])),abs(tau.normalized()[2])) * tau.normalized();
+                std::cout << "Pushed torque limits during swing. " << std::endl;
+                tau = 18.0 / std::max(std::max(abs(tau[0]),abs(tau[1])),abs(tau[2])) * tau;
             }
 
             _legController->commands[i].tauFeedForward = tau;

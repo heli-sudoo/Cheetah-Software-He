@@ -625,7 +625,7 @@ void Imitation_Controller::locomotion_ctrl()
             
             if (abs(tau[0]) > 18.0 || abs(tau[1]) > 18.0 || abs(tau[2]) > 18.0){
                 std::cout << "Pushed torque limits during swing. " << std::endl;
-                tau = 18 / std::max(std::max(abs(tau.normalized()[0]),abs(tau.normalized()[1])),abs(tau.normalized()[2])) * tau.normalized();
+                tau = 18.0 / std::max(std::max(abs(tau[0]),abs(tau[1])),abs(tau[2])) * tau;
             }
 
             _legController->commands[i].tauFeedForward = tau;
@@ -650,8 +650,8 @@ void Imitation_Controller::locomotion_ctrl()
             _legController->commands[i].pDes = pDesLeg[i];
             _legController->commands[i].vDes = 0*vDesLeg[i];
             _legController->commands[i].kpCartesian = 0*Kp_stance;
-            float max_stance_time_se = 0.3;
-            if (stanceTimes[i] < max_stance_time_se){
+            float max_stance_time_se = 0.1;
+            if (stanceTimes[i] < 0.26){
                 _legController->commands[i].kdCartesian = std::max(1 * (1 - 2*stanceState[i]), 0.0f) * Kd_stance; // roll off
             }
             else{ // last stance
@@ -1155,11 +1155,10 @@ void Imitation_Controller::set_problem_data(Vec12<real_t> r, Vec12<real_t> f, Ma
 }
 
 void Imitation_Controller::solve_qp(){
-    nWSR = 100;
-    cpu_time = 0.0;
+    int_t nWSR = 100;
+    real_t cpu_time = 1.0;
 
-    int_t new_nWSR = 100;
-    solver.init(H_qpOASES, g_qpOASES, A_qpOASES, lb_qpOASES, ub_qpOASES, lbA_qpOASES, ubA_qpOASES, new_nWSR, &cpu_time, xOpt_initialGuess);
+    solver.init(H_qpOASES, g_qpOASES, A_qpOASES, lb_qpOASES, ub_qpOASES, lbA_qpOASES, ubA_qpOASES, nWSR, &cpu_time, xOpt_initialGuess);
 
     std::cout << "cpu_time: " << cpu_time << std::endl;
 
