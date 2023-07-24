@@ -151,12 +151,14 @@ void Imitation_Controller::initializeController()
 
     A_control.resize(6,12);
     A_control.setZero();
-    S_control = Vec6<real_t>(300.0,200.0,100.0,1.0,1.0,10.0).asDiagonal();
+    // S_control = Vec6<real_t>(300.0,200.0,100.0,1.0,1.0,10.0).asDiagonal();
     // S_control = Vec6<real_t>(300.0,200.0,100.0,1.0,1.0,1.0).asDiagonal();
     // S_control = Vec6<real_t>(30.0,20.0,10.0,1.0,1.0,10.0).asDiagonal();
+    S_control = Vec6<real_t>(30.0,20.0,10.0,1.0,1.0,1.0).asDiagonal();
     b_control.setZero();
     R_terrain_block.resize(12,12);
     R_terrain_block.setZero();
+    xOpt_prev.setZero();
 
 }
 
@@ -384,7 +386,7 @@ void Imitation_Controller::locomotion_ctrl()
         f_ff[l] = mpc_control.segment(3 * l, 3).cast<float>() - 0.5 * ddp_feedback.segment(3 * l, 3).cast<float>();
 
         Vec3<float> f_ff_rotated = R_terrain.transpose() * f_ff[l];
-        if (f_ff_rotated[2] < 0 || (pow(f_ff_rotated[0],2) + pow(f_ff_rotated[1],2) > (float) mu * pow(f_ff_rotated[2],2))){
+        if (f_ff_rotated[2] < 10.0f || (pow(f_ff_rotated[0],2) + pow(f_ff_rotated[1],2) > (float) mu * pow(f_ff_rotated[2],2))){
             b_solve_qp = true;
             break;
         }
@@ -405,6 +407,9 @@ void Imitation_Controller::locomotion_ctrl()
         for (int leg = 0; leg < 4; leg++){
             f_ff[leg] = -seResult.rBody * xOpt_eigen.segment(3*leg, 3).cast<float>();
         }
+    }
+    for (int leg = 0; leg < 4; leg++){
+        xOpt_prev.segment(3*leg, 3) = f_ff[leg].cast<real_t>();
     }
 
     // set swing trajectory parameters
@@ -651,7 +656,7 @@ void Imitation_Controller::locomotion_ctrl()
             _legController->commands[i].vDes = 0*vDesLeg[i];
             _legController->commands[i].kpCartesian = 0*Kp_stance;
             float max_stance_time_se = 0.1;
-            if (stanceTimes[i] < 0.26){
+            if (stanceTimes[i] < 0.3f){
                 _legController->commands[i].kdCartesian = std::max(1 * (1 - 2*stanceState[i]), 0.0f) * Kd_stance; // roll off
             }
             else{ // last stance
@@ -1144,8 +1149,9 @@ void Imitation_Controller::set_problem_data(Vec12<real_t> r, Vec12<real_t> f, Ma
     }
 
     Mat12<real_t> grf_reg = 0.001 * Mat12<real_t>::Identity();
-    H_eigen = 2 * (A_control.transpose() * S_control * A_control + grf_reg);
-    g_eigen = -2 * A_control.transpose() * S_control * b_control;
+    Mat12<real_t> alpha_prev = 0.01  * Mat12<real_t>::Identity();
+    H_eigen = 2 * (A_control.transpose() * S_control * A_control + grf_reg + alpha_prev);
+    g_eigen = -2 * (A_control.transpose() * S_control * b_control + alpha_prev * xOpt_prev);
 
     copy_Eigen_to_real_t(H_qpOASES, H_eigen, NUM_VARIABLES_QP, NUM_VARIABLES_QP);
     copy_Eigen_to_real_t(g_qpOASES, g_eigen, NUM_VARIABLES_QP, 1);

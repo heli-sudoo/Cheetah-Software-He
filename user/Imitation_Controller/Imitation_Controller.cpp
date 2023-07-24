@@ -639,8 +639,8 @@ void Imitation_Controller::locomotion_ctrl()
             _legController->commands[i].pDes = pDesLeg[i];
             _legController->commands[i].vDes = 0*vDesLeg[i];
             _legController->commands[i].kpCartesian = 0*Kp_stance;
-            float max_stance_time_se = 0.3;
-            if (stanceTimes[i] < max_stance_time_se){
+            float max_stance_time_se = 0.1;
+            if (stanceTimes[i] < 0.3f){
                 _legController->commands[i].kdCartesian = std::max(1 * (1 - 2*stanceState[i]), 0.0f) * Kd_stance; // roll off
             }
             else{ // last stance

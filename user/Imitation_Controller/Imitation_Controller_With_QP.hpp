@@ -244,6 +244,7 @@ private:
     DMat<real_t> g_eigen;
     Vec12<real_t> xOpt_eigen;
     Mat12<real_t> R_terrain_block;
+    Vec12<real_t> xOpt_prev;
 
     DMat<real_t> A_control;
     Mat6<real_t> S_control;
