@@ -337,8 +337,8 @@ void Imitation_Controller::locomotion_ctrl()
 
     is_safe = is_safe && check_safety();
 
-    // float hop_time = 3.0;
-    float hop_time = 5.0;
+    float hop_time = 3.0;
+    // float hop_time = 5.0;
     if (!is_safe ||
         iter_loco * _controlParameters->controller_dt >= hop_time)
     {
@@ -386,7 +386,7 @@ void Imitation_Controller::locomotion_ctrl()
         f_ff[l] = mpc_control.segment(3 * l, 3).cast<float>() - 0.5 * ddp_feedback.segment(3 * l, 3).cast<float>();
 
         Vec3<float> f_ff_rotated = R_terrain.transpose() * f_ff[l];
-        if (f_ff_rotated[2] < 10.0f || (pow(f_ff_rotated[0],2) + pow(f_ff_rotated[1],2) > (float) mu * pow(f_ff_rotated[2],2))){
+        if ((f_ff_rotated[2] < 10.0f || (pow(f_ff_rotated[0],2) + pow(f_ff_rotated[1],2) > (float) mu * pow(f_ff_rotated[2],2))) && contactStatus[l]){
             b_solve_qp = true;
             break;
         }
@@ -408,8 +408,11 @@ void Imitation_Controller::locomotion_ctrl()
             f_ff[leg] = -seResult.rBody * xOpt_eigen.segment(3*leg, 3).cast<float>();
         }
     }
+    xOpt_prev.setZero();
     for (int leg = 0; leg < 4; leg++){
-        xOpt_prev.segment(3*leg, 3) = f_ff[leg].cast<real_t>();
+        if (contactStatus[leg]){
+            xOpt_prev.segment(3*leg, 3) = f_ff[leg].cast<real_t>();
+        }
     }
 
     // set swing trajectory parameters

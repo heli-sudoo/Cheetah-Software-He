@@ -14,7 +14,7 @@ testValue         : 23
 cheater_mode      : 0
 #cheater_mode      : 1
 foot_height_sensor_noise      :  0.001
-foot_process_noise_position   :  0.005 # 0.002
+foot_process_noise_position   :  0.002
 foot_sensor_noise_position    :  0.001
 foot_sensor_noise_velocity    :  0.1
 imu_process_noise_position    :  0.02
