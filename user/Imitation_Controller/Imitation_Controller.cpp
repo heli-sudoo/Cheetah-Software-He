@@ -437,7 +437,7 @@ void Imitation_Controller::locomotion_ctrl()
         pDesLegFinal[i] = pf_rel_com_filtered[i] - seResult.rBody.transpose()*_quadruped->getHipLocation(i);
         
         // float min_foot_dist = 0.25 - 0.05 * (center_point[2] > 1e-3);
-        float min_foot_dist = 0.25 - 0.1 * (pf_init[i][2] < pf_filtered[i][2]);
+        float min_foot_dist = 0.25 + (-0.1 + 0.05 * (abs(eul_terrain[0]) > 1e-3 || abs(eul_terrain[1]) > 1e-3)) * (pf_init[i][2] < pf_filtered[i][2]);
         float max_foot_dist = 0.4 - 0.05 *  (pf_init[i][2] > pf_filtered[i][2]);    
         if (contactStatus[0] && contactStatus[1] && contactStatus[2] && contactStatus[3])
         {
