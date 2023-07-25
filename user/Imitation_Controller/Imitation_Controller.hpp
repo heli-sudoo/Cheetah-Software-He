@@ -152,6 +152,7 @@ public:
     // terrain info
     Vec3<float> center_point;
     Vec3<float> eul_terrain;
+    Vec3<float> prev_eul_terrain;
     Vec3<float> plane_coefficients;
 
     Vec3<float> pf_init[4];
