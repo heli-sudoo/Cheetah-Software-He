@@ -326,17 +326,24 @@ void Imitation_Controller::locomotion_ctrl()
         pFoot[l] = seResult.position +
                    seResult.rBody.transpose() * (_quadruped->getHipLocation(l) + _legController->datas[l].p);
 
+        if (!contactStatus[l])
+        {
+            f_ff[l].setZero();
+            break;
+        }
+
         // friction cone check
-        // previously using 0.5 feedback for all the level awesomeness
+        // previously using 0.5 feedback for all the level ground awesomeness
         f_ff[l] = mpc_control.segment(3 * l, 3).cast<float>() - 0.5 * ddp_feedback.segment(3 * l, 3).cast<float>();
 
         bool check_feedback = false;
         Vec3<float> f_ff_rotated = R_terrain.transpose() * f_ff[l];
-        if (f_ff_rotated[2] < 0){
-            std::cout << "Zeroed force on leg " << l << " (fz < 0)." << std::endl;
+        if (f_ff_rotated[2] < 10){
+            std::cout << "\"Zeroed\" force on leg " << l << " (fz < 10)." << std::endl;
             std::cout << "   Force  : " << f_ff[l].transpose() << std::endl;
             std::cout << "   Rotated: " << f_ff_rotated.transpose() << std::endl;
-            f_ff[l].setZero();
+            // f_ff[l].setZero();
+            f_ff[l] = R_terrain * Vec3<float>(0.0,0.0,10.0);
             check_feedback = true;
         }
         else if (pow(f_ff_rotated[0],2) + pow(f_ff_rotated[1],2) > 0.7 * pow(f_ff_rotated[2],2)){
@@ -347,18 +354,18 @@ void Imitation_Controller::locomotion_ctrl()
             std::cout << "   Force (after): " << f_ff[l].transpose() << std::endl;
         }
 
-        if (check_feedback){
-            f_ff[l] = -0.5 * ddp_feedback.segment(3 * l, 3).cast<float>();
-            f_ff_rotated = R_terrain.transpose() * f_ff[l];
-            if (f_ff_rotated[2] < 0){
-                f_ff[l].setZero();
-            }
-            else if (pow(f_ff_rotated[0],2) + pow(f_ff_rotated[1],2) > 0.7 * pow(f_ff_rotated[2],2)){
-                Vec3<float> fhat = Vec3<float> (f_ff_rotated[0], f_ff_rotated[1], sqrt(1/0.7 * (pow(f_ff_rotated[0],2) + pow(f_ff_rotated[1],2))));
-                f_ff[l] = R_terrain * (f_ff_rotated.dot(fhat) / pow(fhat.norm(),2) * fhat);
-            }
-            std::cout << "   new force: " << f_ff[l].transpose() << std::endl;
-        }
+        // if (check_feedback){
+        //     f_ff[l] = -0.5 * ddp_feedback.segment(3 * l, 3).cast<float>();
+        //     f_ff_rotated = R_terrain.transpose() * f_ff[l];
+        //     if (f_ff_rotated[2] < 0){
+        //         f_ff[l].setZero();
+        //     }
+        //     else if (pow(f_ff_rotated[0],2) + pow(f_ff_rotated[1],2) > 0.7 * pow(f_ff_rotated[2],2)){
+        //         Vec3<float> fhat = Vec3<float> (f_ff_rotated[0], f_ff_rotated[1], sqrt(1/0.7 * (pow(f_ff_rotated[0],2) + pow(f_ff_rotated[1],2))));
+        //         f_ff[l] = R_terrain * (f_ff_rotated.dot(fhat) / pow(fhat.norm(),2) * fhat);
+        //     }
+        //     std::cout << "   new force: " << f_ff[l].transpose() << std::endl;
+        // }
 
         // get the predicted GRF in global frame and convert to body frame
         f_ff[l] = -seResult.rBody * f_ff[l];
@@ -395,8 +402,6 @@ void Imitation_Controller::locomotion_ctrl()
     DVec<float> G_full = _model->getGravityForce();
     DVec<float> CqJd_full = _model->getCoriolisForce();
     DMat<float> Hinv = H.inverse();
-
-    float min_foot_height_td = 100; 
 
     // get final foot position for swing legs
     for (int i = 0; i < 4; i++)
@@ -467,33 +472,6 @@ void Imitation_Controller::locomotion_ctrl()
                 foot_offsets[i] = k * vcom_td;
             }
         }
-        // if ((min_violation || max_violation)
-        //     && !contactStatus[0] && !contactStatus[1] && !contactStatus[2] && !contactStatus[3]) 
-        // {
-        //     // solve quadratic eqn for c s.t. ||pf + k * vcom_td|| = 0.15 where k > 0
-        //     float pf_x = pDesLegFinal[i][0];
-        //     float pf_y = pDesLegFinal[i][1];
-        //     float pf_z = pDesLegFinal[i][2];
-        //     float v_x = vcom_td[0];
-        //     float v_y = vcom_td[1];
-        //     float v_z = vcom_td[2];
-        //     float a = v_x * v_x + v_y * v_y + v_z * v_z;
-        //     float b = 2 * (pf_x * v_x + pf_y * v_y + pf_z * v_z);
-        //     float c = pf_x * pf_x + pf_y * pf_y + pf_z * pf_z - min_violation * (min_foot_dist * min_foot_dist) - max_violation * (max_foot_dist * max_foot_dist);
-        //     float k = (-b + sqrt(b * b - 4 * a * c)) / (2 * a);
-        //     Vec3<float> new_foot_offset = k * vcom_td;
-        //     if (new_foot_offset.norm() > foot_offset.norm())
-        //     {
-        //         foot_offset = (min_violation - max_violation) * new_foot_offset;
-        //     }
-        // }
-        // else if (contactStatus[0] && contactStatus[1] && contactStatus[2] && contactStatus[3])
-        // {
-        //     foot_offset.setZero();
-        // }
-        
-        
-        // pDesLegFinal[i] += foot_offset;
     }
 
     bool min_violation_mode = swing_traj_gen_states[0] == 1 || swing_traj_gen_states[1] == 1 || swing_traj_gen_states[2] == 1 || swing_traj_gen_states[3] == 1;
@@ -631,8 +609,6 @@ void Imitation_Controller::locomotion_ctrl()
                 _legController->commands[i].forceFeedForward = -seResult.rBody * R_terrain * Vec3<float>(0.0,0.0,10.0);
             }
 
-            min_foot_height_td = std::min(min_foot_height_td, -pf_rel_com_filtered[i][2]);
-
         }
         // else in stance
         else
@@ -652,8 +628,6 @@ void Imitation_Controller::locomotion_ctrl()
                 _legController->commands[i].kdCartesian = Kd_stance;
             }
             
-            
-
             _legController->commands[i].forceFeedForward = f_ff[i];
 
             // joint PD (zeroed out)
@@ -705,21 +679,6 @@ void Imitation_Controller::locomotion_ctrl()
     }
 
     _stateEstimator->setContactPhase(stanceState);
-
-    // float min_foot_height = 0.15;//12;//15;
-    // float vz_td = 2.0;
-    // float time_warp_per_cm = 0.01 / vz_td;
-    // if (min_foot_height_td < min_foot_height && !shortened_flight 
-    //     && !contactStatus[0] && !contactStatus[1] && !contactStatus[2] && !contactStatus[3] 
-    //     && swingState[0] < 0.5 && swingState[1] < 0.5 && swingState[2] < 0.5 && swingState[3] < 0.5 
-    //     && !early_contact[0] && !early_contact[1] && !early_contact[2] && !early_contact[3]) // if in early flight phase
-    // {
-    //     int time_warp = (min_foot_height - min_foot_height_td) * time_warp_per_cm * 100 / _controlParameters->controller_dt;
-    //     iter_between_mpc_update = iter_between_mpc_update + time_warp;
-    //     shortened_flight = true;
-    //     // std::cout << "min touchdown foot height: " << min_foot_height_td << std::endl;
-    //     std::cout << "time warped " << time_warp * _controlParameters->controller_dt * 1e3 << " ms! " << std::endl;
-    // }
 
     mpc_time = iter_loco * _controlParameters->controller_dt; // where we are since MPC starts
     iter_between_mpc_update++;
