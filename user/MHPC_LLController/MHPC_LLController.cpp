@@ -178,10 +178,7 @@ void MHPC_LLController::locomotion_ctrl()
 
     // Value-Based WBC 
     if ((int)userParameters.WBC == 2)
-    {
-        // update the contact status of VWBC
-        wbc_.updateContact(mpc_solution.contactStatus.data());
-
+    {        
         // prepare Q-value function for VWBC update
         Qu_mpc = mpc_solution.Qu;
         Quu_mpc = mpc_solution.Quu;
@@ -195,6 +192,9 @@ void MHPC_LLController::locomotion_ctrl()
         qDes << mpc_solution.pos, mpc_solution.eul, qJ_des;
         vDes << mpc_solution.vWorld, mpc_solution.eulrate, qJd_des;       
 
+        // update the contact status of VWBC
+        wbc_.updateContact(mpc_solution.contactStatus.data());
+
         // update the VWBC problem
         wbc_.updateProblem(qMeas.cast<double>(), vMeas.cast<double>(), 
                            qDes.cast<double>(), vDes.cast<double>(), tau_ff.cast<double>(),           
@@ -206,7 +206,7 @@ void MHPC_LLController::locomotion_ctrl()
         // get a solution
         wbc_.getSolution(tau_ff, qddDes);
 
-        // qJd_des += qddDes.tail<12>()* _controlParameters->controller_dt;
+        // qJd_des = vMeas.tail<12>() + qddDes.tail<12>()* _controlParameters->controller_dt;
     }        
     
     for (int leg(0); leg < 4; leg++)
@@ -351,10 +351,15 @@ void MHPC_LLController::updateMPCCommand()
             float t_rel = mpc_time - start_time;
             
             mpc_solution = mpc_sol_curr;
-            interpolateMPCSolution(mpc_sol_curr, mpc_sol_next, t_rel, mpc_solution);                                       
+            interpolateMPCSolution(mpc_sol_curr, mpc_sol_next, t_rel, mpc_solution);   
+            find_a_solution = true;                                    
             break;
         }
     }   
+    if (!find_a_solution)
+    {
+        mpc_solution = mpc_soluition_bag.back();
+    }    
 
     // Update the contact status and status durations (and flip the right and left legs order)
     contactStatus << mpc_solution.contactStatus[1], mpc_solution.contactStatus[0], mpc_solution.contactStatus[3], mpc_solution.contactStatus[2];

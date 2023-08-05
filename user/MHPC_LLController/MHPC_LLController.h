@@ -72,7 +72,6 @@ public:
     void updateStateEstimate();
     void updateMPCCommand();
     void updateContactEstimate();
-    void prepare_for_VWBC();
 
     void handleMPCCommand(const lcm::ReceiveBuffer *rbuf, const std::string &chan,
                           const MHPC_Command_lcmt *msg);
