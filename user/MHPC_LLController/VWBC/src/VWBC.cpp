@@ -129,6 +129,56 @@ namespace quadloco
         qddDes_ += -D_gain_ * (vMeas - vDes);
     }
 
+    void VWBC::solveProblem()
+    {
+        Constraint constraints = formulateConstraints();
+        Cost costs = formulateCosts();
+
+        // Formulate QP problem
+        auto qpProblem = qpOASES::QProblem(numDecisionVars_, constraints.getNumConstraints());
+        qpOASES::Options options;        
+        options.setToMPC();
+        options.printLevel = qpOASES::PL_NONE;
+        options.enableEqualities = qpOASES::BT_TRUE;
+
+        qpProblem.setOptions(options);
+        int nWsr = 10;
+
+        qpGuess.setZero(numDecisionVars_);
+        qpGuess << qddDes_, tauDes_, GRFdes_;
+
+        // Solve the QP problem with initial primal guess        
+        matrix_t A = constraints.A_.transpose();    // By default, eigen matrix is column-major. A transpose is needed here.
+        auto rval = qpProblem.init(costs.H_.data(), costs.g_.data(), A.data(), nullptr, nullptr,
+                       constraints.lb_A_.data(), constraints.ub_A_.data(), nWsr, nullptr, qpGuess.data());                                         
+
+
+        qpSol.setZero(numDecisionVars_);        
+        // If QP is successfully solved, get the primal solution and return
+        if (rval == qpOASES::SUCCESSFUL_RETURN)
+        {
+            // Get the problem solution        
+            rval = qpProblem.getPrimalSolution(qpSol.data());
+            printf("nWsr = %d \n", nWsr);
+            return;
+        }        
+        
+        printf("Failed to solve the QP \n");                     
+        // qpProblem.printProperties();
+
+        // If QP is not successfully solved, but an auxilary QP is solved, still get the primal solution, and return
+        if (qpProblem.getStatus() == qpOASES::QPS_AUXILIARYQPSOLVED)
+        {
+            printf("Auxilary QP is solved instead \n");
+            qpProblem.getPrimalSolution(qpSol.data());
+            return;
+        }
+
+        // Otherwise, use the initial guess (from MPC) as a solution
+        printf("Skip QP. Use MPC solution for WBC \n");
+        qpSol = qpGuess;        
+    }
+
     void VWBC::updateDesired(const Vec18<scalar_t> &qDes, const Vec18<scalar_t> &vDes,
                              const Vec12<scalar_t> &tauDes)
     {
@@ -161,41 +211,15 @@ namespace quadloco
         }
         
         qddDes_ = pinocchio::forwardDynamics(model, *des_data_ptr, qDes, vDes, selectionMat_*tauDes_, JEE_des, EEdrift_des, 1e-12);
-        GRFdes_ = des_data_ptr->lambda_c;        
-    }
+        GRFdes_ = des_data_ptr->lambda_c;   
 
-    void VWBC::solveProblem()
-    {
-        Constraint constraints = formulateConstraints();
-        Cost costs = formulateCosts();
-
-        // Formulate QP problem
-        auto qpProblem = qpOASES::QProblem(numDecisionVars_, constraints.getNumConstraints());
-        qpOASES::Options options;        
-        options.setToMPC();
-        options.printLevel = qpOASES::PL_NONE;
-        options.enableEqualities = qpOASES::BT_TRUE;
-
-        qpProblem.setOptions(options);
-        int nWsr = 10;
-
-        qpGuess.setZero(numDecisionVars_);
-        qpGuess << qddDes_, tauDes_, GRFdes_;
-
-        // Solve the QP problem with initial primal guess        
-        matrix_t A = constraints.A_.transpose();    // By default, eigen matrix is column-major. A transpose is needed here.
-        qpProblem.init(costs.H_.data(), costs.g_.data(), A.data(), nullptr, nullptr,
-                       constraints.lb_A_.data(), constraints.ub_A_.data(), nWsr, nullptr, qpGuess.data());        
-        
-        // Get the problem solution
-        qpSol.setZero(numDecisionVars_);
-        qpOASES::real_t rval = qpProblem.getPrimalSolution(qpSol.data());
-        if (rval != qpOASES::SUCCESSFUL_RETURN)
+        if (GRFdes_.size() > 0 && GRFdes_[2] < 0)
         {
-            printf("Failed to solve the whole-body QP\n");
-        }                       
+            std::cout << "GRFdes = " << GRFdes_.transpose() << "\n";
+        }
+             
     }
-
+    
     /*
         @brief: Formulates all equality and inequality constraints
                 Decesion variable : [qdd, tau, GRF]
@@ -221,7 +245,8 @@ namespace quadloco
     */
     Cost VWBC::formulateCosts()
     {
-        return  formulateValueCost() + formulateGeneralizedAccCost() + formulateTorqueRegulation() + formulateGRFRegulation();
+        // return  formulateGeneralizedAccCost() + formulateTorqueRegulation() + formulateGRFRegulation();        
+        return  formulateValueCost() + formulateGeneralizedAccCost() + formulateTorqueRegulation() + formulateGRFRegulation();        
     }
 
     /*
@@ -304,6 +329,7 @@ namespace quadloco
         return {A, lb_A, ub_A};
     }
 
+
     /*
         @brief: Formulates friction cone constraints
                 Outer pyramid approximation of friction cone: |F_x/y| <= mu * F_z
@@ -337,7 +363,7 @@ namespace quadloco
         @brief: Formualtes the cost function that depends on the value fucntion approximation
 
         @NOTE:
-                Qu here = Qu_hat - Quu*u_ff + Qux*(x - xde) are updated before calling VWBC
+                Qu here = Qu_hat - Quu*u_ff + Qux*(x - xdes) are updated before calling VWBC
     */
     Cost VWBC::formulateValueCost()
     {
