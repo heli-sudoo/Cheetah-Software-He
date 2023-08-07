@@ -1,19 +1,19 @@
 struct MHPC_Command_lcmt {
     int32_t N_mpcsteps;
-    float mpc_times[4];
-    float torque[4][12];    
-    float eul[4][3];
-    float pos[4][3];
-    float qJ[4][12];
-    float vWorld[4][3];
-    float eulrate[4][3];        
-    float qJd[4][12];
-    float GRF[4][12];
-    float feedback[4][432];
-    float Qu[4][12];
-    float Quu[4][144];
-    float Qux[4][432];
-    int32_t contacts[4][4];
-    float statusTimes[4][4];          
+    float mpc_times[N_mpcsteps];
+    float torque[N_mpcsteps][12];    
+    float eul[N_mpcsteps][3];
+    float pos[N_mpcsteps][3];
+    float qJ[N_mpcsteps][12];
+    float vWorld[N_mpcsteps][3];
+    float eulrate[N_mpcsteps][3];        
+    float qJd[N_mpcsteps][12];
+    float GRF[N_mpcsteps][12];
+    float feedback[N_mpcsteps][432];
+    float Qu[N_mpcsteps][12];
+    float Quu[N_mpcsteps][144];
+    float Qux[N_mpcsteps][432];
+    int32_t contacts[N_mpcsteps][N_mpcsteps];
+    float statusTimes[N_mpcsteps][N_mpcsteps];          
     float solve_time;
 }

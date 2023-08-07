@@ -21,7 +21,9 @@ enum RC_MODE
     rc_locomotion = 3 // top right (estop) switch in bottom position
 };
 
-MHPC_LLController::MHPC_LLController() : mpc_cmds_lcm(getLcmUrl(255)), mpc_data_lcm(getLcmUrl(255))
+MHPC_LLController::MHPC_LLController() : 
+                                        mpc_cmds_lcm(getLcmUrl(255)), 
+                                        mpc_data_lcm(getLcmUrl(255))                                       
 {
     if (!mpc_cmds_lcm.good())
     {
@@ -97,20 +99,20 @@ void MHPC_LLController::handleMPCCommand(const lcm::ReceiveBuffer *rbuf, const s
     MPCSolution mpc_sol_temp;
     for (int i = 0; i < msg->N_mpcsteps; i++)
     {
-        std::copy(msg->torque[i], msg->torque[i] + 12, mpc_sol_temp.torque.data());
-        std::copy(msg->pos[i], msg->pos[i] + 3, mpc_sol_temp.pos.data());
-        std::copy(msg->eul[i], msg->eul[i] + 3, mpc_sol_temp.eul.data());
-        std::copy(msg->vWorld[i], msg->vWorld[i] + 3, mpc_sol_temp.vWorld.data());
-        std::copy(msg->eulrate[i], msg->eulrate[i] + 3, mpc_sol_temp.eulrate.data());
-        std::copy(msg->qJ[i], msg->qJ[i] + 12, mpc_sol_temp.qJ.data());
-        std::copy(msg->qJd[i], msg->qJd[i] + 12, mpc_sol_temp.qJd.data());
-        std::copy(msg->GRF[i], msg->GRF[i]+12, mpc_sol_temp.GRF.data());
-        std::copy(msg->Qu[i], msg->Qu[i]+12, mpc_sol_temp.Qu.data());
-        std::copy(msg->Quu[i], msg->Quu[i]+144, mpc_sol_temp.Quu.data());
-        std::copy(msg->Qux[i], msg->Qux[i]+432, mpc_sol_temp.Qux.data());
-        std::copy(msg->feedback[i], msg->feedback[i]+432, mpc_sol_temp.K.data());
-        std::copy(msg->contacts[i], msg->contacts[i] + 4, mpc_sol_temp.contactStatus.data());
-        std::copy(msg->statusTimes[i], msg->statusTimes[i] + 4, mpc_sol_temp.statusTimes.data());
+        std::copy(msg->torque[i].begin(), msg->torque[i].end(), mpc_sol_temp.torque.data());
+        std::copy(msg->pos[i].begin(), msg->pos[i].end(), mpc_sol_temp.pos.data());
+        std::copy(msg->eul[i].begin(), msg->eul[i].end(), mpc_sol_temp.eul.data());
+        std::copy(msg->vWorld[i].begin(), msg->vWorld[i].end(), mpc_sol_temp.vWorld.data());
+        std::copy(msg->eulrate[i].begin(), msg->eulrate[i].end(), mpc_sol_temp.eulrate.data());
+        std::copy(msg->qJ[i].begin(), msg->qJ[i].end(), mpc_sol_temp.qJ.data());
+        std::copy(msg->qJd[i].begin(), msg->qJd[i].end(), mpc_sol_temp.qJd.data());
+        std::copy(msg->GRF[i].begin(), msg->GRF[i].end(), mpc_sol_temp.GRF.data());
+        std::copy(msg->Qu[i].begin(), msg->Qu[i].end(), mpc_sol_temp.Qu.data());
+        std::copy(msg->Quu[i].begin(), msg->Quu[i].end(), mpc_sol_temp.Quu.data());
+        std::copy(msg->Qux[i].begin(), msg->Qux[i].end(), mpc_sol_temp.Qux.data());
+        std::copy(msg->feedback[i].begin(), msg->feedback[i].end(), mpc_sol_temp.K.data());
+        std::copy(msg->contacts[i].begin(), msg->contacts[i].end(), mpc_sol_temp.contactStatus.data());
+        std::copy(msg->statusTimes[i].begin(), msg->statusTimes[i].end(), mpc_sol_temp.statusTimes.data());
         mpc_sol_temp.time = msg->mpc_times[i];
         
         mpc_soluition_bag.push_back(mpc_sol_temp);
@@ -206,7 +208,7 @@ void MHPC_LLController::locomotion_ctrl()
         // get a solution
         wbc_.getSolution(tau_ff, qddDes);
 
-        // qJd_des = vMeas.tail<12>() + qddDes.tail<12>()* _controlParameters->controller_dt;
+        // qJd_des = vMeas.tail<12>() + qddDes.tail<12>()* _controlParameters->controller_dt;        
     }        
     
     for (int leg(0); leg < 4; leg++)
