@@ -61,7 +61,7 @@ void MHPC_LLController::initializeController()
     mpc_time = 0;
     iter_loco = 0;
     iter_between_mpc_update = 0;
-    nsteps_between_mpc_update = 10;
+    nsteps_between_mpc_update = 15;
     yaw_flip_plus_times = 0;
     yaw_flip_mins_times = 0;
     raw_yaw_cur = _stateEstimate->rpy[2];
@@ -171,18 +171,29 @@ void MHPC_LLController::locomotion_ctrl()
     Vec12<float> tau_ff(12);
     tau_ff = mpc_solution.torque;
 
+    // Print desired GRFs with negative normal forces
+    // Only used for debugging purpose
+    for (size_t leg = 0; leg < 4; leg++)
+    {
+        const auto& GRF_leg = mpc_solution.GRF.segment<3>(3*leg);
+        if (GRF_leg[2] < 0)
+        {
+            std::cout << "Leg "<< leg << "has negative GRF " << GRF_leg.transpose() << "\n";
+        }        
+    }
+    
     // Ricatti-Gain feedback control
     if ((int)userParameters.WBC == 1)
     {        
         const auto& K_mpc = mpc_solution.K;
-        tau_ff += K_mpc * (x_se - x_des);
+        tau_ff += K_mpc.rightCols<33>() * (x_se - x_des).tail<33>();        
     }
 
     // Value-Based WBC 
     if ((int)userParameters.WBC == 2)
     {        
-        // prepare Q-value function for VWBC update
-        Qu_mpc = mpc_solution.Qu;
+        // prepare Q-value function for VWBC update        
+        Qu_mpc.setZero();
         Quu_mpc = mpc_solution.Quu;
         Qu_mpc -= Quu_mpc * tau_ff;
         Qu_mpc += mpc_solution.Qux.rightCols(33)*(x_se - x_des).tail(33);
@@ -360,6 +371,7 @@ void MHPC_LLController::updateMPCCommand()
     }   
     if (!find_a_solution)
     {
+        printf("Queried time out of buffered MPC solutions. Use the last MPC solution. \n");
         mpc_solution = mpc_soluition_bag.back();
     }    
 
