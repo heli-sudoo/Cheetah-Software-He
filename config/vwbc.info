@@ -10,4 +10,5 @@ vwbc
     weightGRF       0.0
     P_gain          4.0
     D_gain          0.1
+    warmstart       true
 }

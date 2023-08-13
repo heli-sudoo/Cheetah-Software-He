@@ -104,7 +104,8 @@ namespace quadloco
         scalar_t weightGRF_{};
         scalar_t P_gain_{};
         scalar_t D_gain_{};
-    
+        bool     warm_start_{true};
+        
     protected:
         // QP solution
         vector_t qpSol;        

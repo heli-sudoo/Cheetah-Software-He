@@ -144,9 +144,12 @@ namespace quadloco
         qpProblem.setOptions(options);
         int nWsr = 10;
 
+        // Initial guess of QP
         qpGuess.setZero(numDecisionVars_);
-        qpGuess << qddDes_, tauDes_, GRFdes_;
-
+        if (warm_start_)
+        {
+            qpGuess << qddDes_, tauDes_, GRFdes_;
+        }    
         // Solve the QP problem with initial primal guess        
         matrix_t A = constraints.A_.transpose();    // By default, eigen matrix is column-major. A transpose is needed here.
         auto rval = qpProblem.init(costs.H_.data(), costs.g_.data(), A.data(), nullptr, nullptr,
@@ -176,7 +179,7 @@ namespace quadloco
 
         // Otherwise, use the initial guess (from MPC) as a solution
         printf("Skip QP. Use MPC solution for WBC \n");
-        qpSol = qpGuess;        
+        qpSol << qddDes_, tauDes_, GRFdes_;        
     }
 
     void VWBC::updateDesired(const Vec18<scalar_t> &qDes, const Vec18<scalar_t> &vDes,
@@ -213,11 +216,16 @@ namespace quadloco
         qddDes_ = pinocchio::forwardDynamics(model, *des_data_ptr, qDes, vDes, selectionMat_*tauDes_, JEE_des, EEdrift_des, 1e-12);
         GRFdes_ = des_data_ptr->lambda_c;   
 
-        if (GRFdes_.size() > 0 && GRFdes_[2] < 0)
+        // Print GRFs with negative normal forces
+        // Only used for debugging purpose
+        for (size_t i = 0; i < numContacts_; i++)
         {
-            std::cout << "GRFdes = " << GRFdes_.transpose() << "\n";
-        }
-             
+            if (GRFdes_[3*i+2] < 0)
+            {
+                std::cout << "GRFdes = " << GRFdes_.segment(3*i, 3).transpose() << "\n";
+            }
+            
+        }                            
     }
     
     /*
@@ -363,7 +371,7 @@ namespace quadloco
         @brief: Formualtes the cost function that depends on the value fucntion approximation
 
         @NOTE:
-                Qu here = Qu_hat - Quu*u_ff + Qux*(x - xdes) are updated before calling VWBC
+                Qu here = - Quu*u_ff + Qux*(x - xdes) are updated before calling VWBC
     */
     Cost VWBC::formulateValueCost()
     {
@@ -474,13 +482,7 @@ namespace quadloco
             printf("Quu is not positive definite \n");            
             return;
         }
-
-        // // Check the dynamics constraints
-        // std::cout << "dynamics residual = " << (constraints.A_.topRows(18)*qpSol-constraints.lb_A_.head(18)).norm() << "\n";
-
-        // // Check the nonslip constraints
-        // scalar_t nonslip_res = (constraints.A_.middleRows(18,3*numContacts_) * qpSol - constraints.lb_A_.segment(18,3*numContacts_)).norm();        
-        // std::cout << "nonslip residual = " << nonslip_res << "\n";
+      
     }
 
     void VWBC::loadParameters()
@@ -501,6 +503,7 @@ namespace quadloco
         weightGRF_ = pt.get<scalar_t>("vwbc.weightGRF");
         P_gain_ = pt.get<scalar_t>("vwbc.P_gain");
         D_gain_ = pt.get<scalar_t>("vwbc.D_gain");
+        warm_start_ = pt.get<bool>("vwbc.warmstart");
     }
 
 } // namespace quadloco
