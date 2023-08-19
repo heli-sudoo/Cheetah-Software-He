@@ -45,9 +45,9 @@ inline void interpolateMPCSolution(const MPCSolution& s0, const MPCSolution& s1,
     linearly_interpolate_matrices(s0.eulrate, s1.eulrate, dur, t_rel, st.eulrate);
     linearly_interpolate_matrices(s0.qJ, s1.qJ, dur, t_rel, st.qJ);
     linearly_interpolate_matrices(s0.qJd, s1.qJd, dur, t_rel, st.qJd);
-    linearly_interpolate_matrices(s0.Qu, s1.Qu, dur, t_rel, st.Qu);
-    linearly_interpolate_matrices(s0.Quu, s1.Quu, dur, t_rel, st.Quu);
-    linearly_interpolate_matrices(s0.Qux, s1.Qux, dur, t_rel, st.Qux);
+    // linearly_interpolate_matrices(s0.Qu, s1.Qu, dur, t_rel, st.Qu);
+    // linearly_interpolate_matrices(s0.Quu, s1.Quu, dur, t_rel, st.Quu);
+    // linearly_interpolate_matrices(s0.Qux, s1.Qux, dur, t_rel, st.Qux);
 }
 
 class MHPC_LLController : public RobotController

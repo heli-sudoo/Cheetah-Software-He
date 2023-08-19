@@ -186,7 +186,7 @@ void MHPC_LLController::locomotion_ctrl()
     if ((int)userParameters.WBC == 1)
     {        
         const auto& K_mpc = mpc_solution.K;
-        tau_ff += K_mpc.rightCols<33>() * (x_se - x_des).tail<33>();        
+        tau_ff += K_mpc.rightCols<34>() * (x_se - x_des).tail<34>();        
     }
 
     // Value-Based WBC 
@@ -196,7 +196,7 @@ void MHPC_LLController::locomotion_ctrl()
         Qu_mpc.setZero();
         Quu_mpc = mpc_solution.Quu;
         Qu_mpc -= Quu_mpc * tau_ff;
-        Qu_mpc += mpc_solution.Qux.rightCols(33)*(x_se - x_des).tail(33);
+        Qu_mpc += mpc_solution.Qux.rightCols(34)*(x_se - x_des).tail(34);
 
         // prepare other information for VWBC update
         Vec18<float> qMeas = x_se.head<18>();            // measured generalized joint
