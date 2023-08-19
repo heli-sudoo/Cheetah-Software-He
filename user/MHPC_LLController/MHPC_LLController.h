@@ -10,6 +10,7 @@
 #include "MHPC_Data_lcmt.hpp"
 #include "MHPCLLUserParameters.h"
 #include "VWBC/include/VWBC.h"
+#include "extVelocity_lcmt.hpp"
 
 struct MPCSolution
 {
@@ -76,6 +77,8 @@ public:
     void handleMPCCommand(const lcm::ReceiveBuffer *rbuf, const std::string &chan,
                           const MHPC_Command_lcmt *msg);
     void handleMPCLCMthread();    
+
+    void applyVelocityDisturbance();
         
 protected:
     MHPCLLUserParameters userParameters;
@@ -134,6 +137,10 @@ public:
 
     // WBC
     quadloco::VWBC wbc_;
+
+    // Disturbance
+    lcm::LCM kick_lcm;
+    extVelocity_lcmt kick_lcmt;
 
 private:
     Vec24<float> mpc_control;

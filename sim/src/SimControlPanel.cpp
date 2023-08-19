@@ -90,7 +90,7 @@ SimControlPanel::SimControlPanel(QWidget *parent)
       _ctrlVisionLCM(getLcmUrl(255)),
       _miniCheetahDebugLCM(getLcmUrl(255)),
       _resetSimLCM(getLcmUrl(255)),
-      _extForceLCM(getLcmUrl(255))
+      _extVelocityLCM(getLcmUrl(255))
 {
 
   ui->setupUi(this);    // QT setup
@@ -154,8 +154,8 @@ SimControlPanel::SimControlPanel(QWidget *parent)
   _resetSimLCM.subscribe("reset_sim", &SimControlPanel::handleResetSimLCM, this);
   _resetSimLCMThread = std::thread(&SimControlPanel::resetSimLCMThread, this);
 
-  _extForceLCM.subscribe("ext_force", &SimControlPanel::handleExtForceLCM, this);
-  _extForceLCMThread = std::thread(&SimControlPanel::extForceLCMThread, this);
+  _extVelocityLCM.subscribe("ext_force", &SimControlPanel::handleExtVelocityLCM, this);
+  _extVelocityLCMThread = std::thread(&SimControlPanel::extVelocityLCMThread, this);
 
   // subscribe mc debug
   _miniCheetahDebugLCM.subscribe("leg_control_data", &SimControlPanel::handleSpiDebug, this);
@@ -251,27 +251,12 @@ void SimControlPanel::handleResetSimLCM(const lcm::ReceiveBuffer *rbuf, const st
   }
 }
 
-void SimControlPanel::handleExtForceLCM(const lcm::ReceiveBuffer *rbuf, const std::string &chan,
-                                        const extForce_t *msg)
-{
-  // SVec<double> spatial_ext_force;
-  // vectorAligned<SVec<double>> sforces;
-  // spatial_ext_force.setZero();
-  // // You have to define external forces for all 18 bodies
-  // for (int i = 0; i < 18; i++)
-  // {
-  //   sforces.push_back(SVec<double>::Zero());
-  // }
-  
-  // // First three are moments, last three are line forces
-  // spatial_ext_force.head(3) << msg->torque[0], msg->torque[1], msg->torque[2];
-  // spatial_ext_force.tail(3) << msg->force[0], msg->force[1], msg->force[2];
-  
-  // sforces[5]=spatial_ext_force;
-  // _simulation->_simulator->setAllExternalForces(sforces);
+void SimControlPanel::handleExtVelocityLCM(const lcm::ReceiveBuffer *rbuf, const std::string &chan,
+                                        const extVelocity_lcmt *msg)
+{  
   SVec<double> kickVel;
   kickVel.setZero();
-  kickVel.tail(3) << msg->force[0], msg->force[1], msg->force[2];
+  kickVel.tail(3) << msg->linear[0], msg->linear[1], msg->linear[2];
   FBModelState<double> state = _simulation->getRobotState();
   state.bodyVelocity += kickVel;
   _simulation->setRobotState(state);

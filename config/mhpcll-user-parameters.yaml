@@ -9,3 +9,8 @@ Kp_joint:         [3, 3, 3]
 Kd_joint:         [0.5, 0.5, 0.5]
 
 WBC:              0
+
+kick_start:        0.0
+kick_dur:          0.0
+kick_linear:       [0.0, 0.0, 0.0]
+kick_angular:      [0.0, 0.0, 0.0]

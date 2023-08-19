@@ -13,7 +13,11 @@ public:
         INIT_PARAMETER(draw_plan),
         INIT_PARAMETER(Kp_joint),
         INIT_PARAMETER(Kd_joint),
-        INIT_PARAMETER(WBC)                       
+        INIT_PARAMETER(WBC),
+        INIT_PARAMETER(kick_start),
+        INIT_PARAMETER(kick_dur),
+        INIT_PARAMETER(kick_linear),
+        INIT_PARAMETER(kick_angular)                       
       {}
   DECLARE_PARAMETER(Vec3<double>, Kp_jointPD);
   DECLARE_PARAMETER(Vec3<double>, Kd_jointPD);
@@ -22,6 +26,10 @@ public:
   DECLARE_PARAMETER(Vec3<double>, Kp_joint);
   DECLARE_PARAMETER(Vec3<double>, Kd_joint);  
   DECLARE_PARAMETER(double, WBC);
+  DECLARE_PARAMETER(double, kick_start);
+  DECLARE_PARAMETER(double, kick_dur);
+  DECLARE_PARAMETER(Vec3<double>, kick_linear);
+  DECLARE_PARAMETER(Vec3<double>, kick_angular);
 };
 
 #endif //PROJECT_MHPCLL_USERPARAMETERS_H

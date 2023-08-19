@@ -23,7 +23,8 @@ enum RC_MODE
 
 MHPC_LLController::MHPC_LLController() : 
                                         mpc_cmds_lcm(getLcmUrl(255)), 
-                                        mpc_data_lcm(getLcmUrl(255))                                       
+                                        mpc_data_lcm(getLcmUrl(255)),
+                                        kick_lcm(getLcmUrl(255))                                       
 {
     if (!mpc_cmds_lcm.good())
     {
@@ -38,6 +39,14 @@ MHPC_LLController::MHPC_LLController() :
         printf("Failed to initialize lcm for mpc data \n");
         printf(RESET);
     }
+
+    if (!kick_lcm.good())
+    {
+        printf(RED);
+        printf("Failed to initialize lcm for kick disturbance \n");
+        printf(RESET);
+    }
+    
 
     in_standup = false;
     desired_command_mode = CONTROL_MODE::estop;
@@ -389,6 +398,25 @@ void MHPC_LLController::updateMPCCommand()
     x_des << pos_des, eul_des, qJ_des, vWorld_des, eulrate_des, qJd_des;             
     
     mpc_cmd_mutex.unlock();
+}
+
+void MHPC_LLController::applyVelocityDisturbance()
+{
+    float kick_start = static_cast<float> (userParameters.kick_start);
+    float kick_dur = static_cast<float> (userParameters.kick_dur);
+    
+    if (mpc_time >= kick_start &&
+        mpc_time < kick_start+kick_dur)
+    {
+        const auto kick_count = kick_dur/_controlParameters->controller_dt;
+        const Vec3<float> kick_linear = userParameters.kick_linear.cast<float>()/kick_count;
+        const Vec3<float> kick_angular = userParameters.kick_angular.cast<float>()/kick_count;
+        
+        std::copy(kick_linear.begin(), kick_linear.end(), kick_lcmt.linear);
+        std::copy(kick_angular.begin(), kick_angular.end(), kick_lcmt.angular);
+    }
+    
+    kick_lcm.publish("ext_force", &kick_lcmt);
 }
 
 
