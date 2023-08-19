@@ -7,11 +7,11 @@
 #include "ui_SimControlPanel.h"
 #include "JoystickTest.h"
 
-
 /*!
  * Display an error messagebox with the given text
  */
-static void createErrorMessage(const std::string& text) {
+static void createErrorMessage(const std::string &text)
+{
   QMessageBox mb;
   mb.setText(QString(text.c_str()));
   mb.exec();
@@ -20,17 +20,21 @@ static void createErrorMessage(const std::string& text) {
 /*!
  * Display control parameters in a qtable.
  */
-static void updateQtableWithParameters(ControlParameters& params,
-                                       QTableWidget& table) {
+static void updateQtableWithParameters(ControlParameters &params,
+                                       QTableWidget &table)
+{
   table.setRowCount((s32)params.collection._map.size());
   table.setColumnCount(2);
 
   s32 i = 0;
-  for (auto& kv : params.collection._map) {
+  for (auto &kv : params.collection._map)
+  {
     (void)kv;
-    for (s32 col = 0; col < 2; col++) {
-      QTableWidgetItem* cell = table.item(i, col);
-      if (!cell) {
+    for (s32 col = 0; col < 2; col++)
+    {
+      QTableWidgetItem *cell = table.item(i, col);
+      if (!cell)
+      {
         cell = new QTableWidgetItem;
         table.setItem(i, col, cell);
       }
@@ -42,26 +46,31 @@ static void updateQtableWithParameters(ControlParameters& params,
   }
 }
 
-std::string SimControlPanel::getDefaultUserParameterFileName() {
+std::string SimControlPanel::getDefaultUserParameterFileName()
+{
   std::string path = getConfigDirectoryPath() + DEFAULT_USER_FILE;
   ParamHandler paramHandler(path);
 
-  if(!paramHandler.fileOpenedSuccessfully()) {
+  if (!paramHandler.fileOpenedSuccessfully())
+  {
     throw std::runtime_error("Could not open yaml file for default user parameter file: " + path);
   }
 
   std::string collectionName;
-  if(!paramHandler.getString("__collection-name__", collectionName)) {
+  if (!paramHandler.getString("__collection-name__", collectionName))
+  {
     throw std::runtime_error("Could not find __collection-name__ parameter in default user parameter file");
   }
 
-  if(collectionName != "user-parameter-file") {
+  if (collectionName != "user-parameter-file")
+  {
     throw std::runtime_error("default user parameter file has the wrong collection name, should be user-parameter-file");
   }
 
   std::string fileName;
 
-  if(!paramHandler.getString("file_name", fileName)) {
+  if (!paramHandler.getString("file_name", fileName))
+  {
     throw std::runtime_error("default user parameter file does not have a parameter named file_name");
   }
 
@@ -70,7 +79,7 @@ std::string SimControlPanel::getDefaultUserParameterFileName() {
 /*!
  * Init sim window
  */
-SimControlPanel::SimControlPanel(QWidget* parent)
+SimControlPanel::SimControlPanel(QWidget *parent)
     : QMainWindow(parent),
       ui(new Ui::SimControlPanel),
       _userParameters("user-parameters"),
@@ -79,26 +88,34 @@ SimControlPanel::SimControlPanel(QWidget* parent)
       _pointsLCM(getLcmUrl(255)),
       _indexmapLCM(getLcmUrl(255)),
       _ctrlVisionLCM(getLcmUrl(255)),
-      _miniCheetahDebugLCM(getLcmUrl(255))
+      _miniCheetahDebugLCM(getLcmUrl(255)),
+      _resetSimLCM(getLcmUrl(255)),
+      _extForceLCM(getLcmUrl(255))
 {
 
-  ui->setupUi(this); // QT setup
-  updateUiEnable();  // enable/disable buttons as needed.
+  ui->setupUi(this);    // QT setup
+  updateUiEnable();     // enable/disable buttons as needed.
   updateTerrainLabel(); // display name of loaded terrain file
 
   // attempt to load default user settings.
   _loadedUserSettings = true;
 
-  try {
+  try
+  {
     _userParameters.defineAndInitializeFromYamlFile(getConfigDirectoryPath() + getDefaultUserParameterFileName());
-  } catch (std::runtime_error& ex) {
+  }
+  catch (std::runtime_error &ex)
+  {
     _loadedUserSettings = false;
   }
 
-  if(!_loadedUserSettings) {
+  if (!_loadedUserSettings)
+  {
     printf("[SimControlPanel] Failed to load default user settings!\n");
     throw std::runtime_error("Failed to load default user settings!");
-  } else {
+  }
+  else
+  {
     // display user settings in qtable if we loaded successfully
     loadUserParameters(_userParameters);
   }
@@ -107,19 +124,22 @@ SimControlPanel::SimControlPanel(QWidget* parent)
   printf("[SimControlPanel] Init simulator parameters...\n");
   _parameters.initializeFromYamlFile(getConfigDirectoryPath() +
                                      SIMULATOR_DEFAULT_PARAMETERS);
-  if (!_parameters.isFullyInitialized()) {
+  if (!_parameters.isFullyInitialized())
+  {
     printf(
         "[ERROR] Simulator parameters are not fully initialized.  You forgot: "
         "\n%s\n",
         _parameters.generateUnitializedList().c_str());
     throw std::runtime_error("simulator not initialized");
-  } else {
+  }
+  else
+  {
     printf("\tsim parameters are all good\n");
   }
   loadSimulationParameters(_parameters);
 
   _pointsLCM.subscribe("cf_pointcloud", &SimControlPanel::handlePointsLCM, this);
-  _pointsLCMThread = std::thread(&SimControlPanel::pointsLCMThread, this); 
+  _pointsLCMThread = std::thread(&SimControlPanel::pointsLCMThread, this);
 
   _heightmapLCM.subscribe("local_heightmap", &SimControlPanel::handleHeightmapLCM, this);
   _heightmapLCMThread = std::thread(&SimControlPanel::heightmapLCMThread, this);
@@ -131,23 +151,31 @@ SimControlPanel::SimControlPanel(QWidget* parent)
   _ctrlVisionLCM.subscribe("obstacle_visual", &SimControlPanel::handleObstacleLCM, this);
   _ctrlVisionLCMThread = std::thread(&SimControlPanel::ctrlVisionLCMThread, this);
 
+  _resetSimLCM.subscribe("reset_sim", &SimControlPanel::handleResetSimLCM, this);
+  _resetSimLCMThread = std::thread(&SimControlPanel::resetSimLCMThread, this);
+
+  _extForceLCM.subscribe("ext_force", &SimControlPanel::handleExtForceLCM, this);
+  _extForceLCMThread = std::thread(&SimControlPanel::extForceLCMThread, this);
+
   // subscribe mc debug
   _miniCheetahDebugLCM.subscribe("leg_control_data", &SimControlPanel::handleSpiDebug, this);
-  _miniCheetahDebugLCMThread = std::thread([&](){
+  _miniCheetahDebugLCMThread = std::thread([&]()
+                                           {
    for(;;)
-     _miniCheetahDebugLCM.handle();
-  });
-
+     _miniCheetahDebugLCM.handle(); });
 }
 
-void SimControlPanel::handleVelocityCMDLCM(const lcm::ReceiveBuffer* rbuf, 
-    const std::string & chan,
-    const velocity_visual_t* msg){
+void SimControlPanel::handleVelocityCMDLCM(const lcm::ReceiveBuffer *rbuf,
+                                           const std::string &chan,
+                                           const velocity_visual_t *msg)
+{
   (void)rbuf;
   (void)chan;
- 
-  if(_graphicsWindow){
-    for(size_t i(0); i<3; ++i){
+
+  if (_graphicsWindow)
+  {
+    for (size_t i(0); i < 3; ++i)
+    {
       _graphicsWindow->_vel_cmd_dir[i] = msg->vel_cmd[i];
       _graphicsWindow->_vel_cmd_pos[i] = msg->base_position[i];
     }
@@ -155,16 +183,19 @@ void SimControlPanel::handleVelocityCMDLCM(const lcm::ReceiveBuffer* rbuf,
   }
 }
 
-void SimControlPanel::handleObstacleLCM(const lcm::ReceiveBuffer* rbuf, 
-    const std::string & chan,
-    const obstacle_visual_t* msg){
+void SimControlPanel::handleObstacleLCM(const lcm::ReceiveBuffer *rbuf,
+                                        const std::string &chan,
+                                        const obstacle_visual_t *msg)
+{
   (void)rbuf;
   (void)chan;
- 
-  if(_graphicsWindow){
+
+  if (_graphicsWindow)
+  {
     _graphicsWindow->_obs_list.clear();
     Vec3<double> obs_loc;
-    for(int i(0); i<msg->num_obs; ++i){
+    for (int i(0); i < msg->num_obs; ++i)
+    {
       obs_loc[0] = msg->location[i][0];
       obs_loc[1] = msg->location[i][1];
       obs_loc[2] = msg->location[i][2];
@@ -175,19 +206,22 @@ void SimControlPanel::handleObstacleLCM(const lcm::ReceiveBuffer* rbuf,
     _graphicsWindow->_obs_height = msg->height;
 
     _graphicsWindow->_obstacle_update = true;
-    //printf("%f, %f\n", _graphicsWindow->_obs_list[0][0], _graphicsWindow->_obs_list[0][1]);
+    // printf("%f, %f\n", _graphicsWindow->_obs_list[0][0], _graphicsWindow->_obs_list[0][1]);
   }
-
 }
 void SimControlPanel::handlePointsLCM(const lcm::ReceiveBuffer *rbuf,
-    const std::string &chan,
-                                      const rs_pointcloud_t*msg) {
+                                      const std::string &chan,
+                                      const rs_pointcloud_t *msg)
+{
   (void)rbuf;
   (void)chan;
 
-  if(_graphicsWindow){
-    for(size_t i(0); i<_graphicsWindow->_num_points; ++i){
-      for(size_t j(0); j<3; ++j){
+  if (_graphicsWindow)
+  {
+    for (size_t i(0); i < _graphicsWindow->_num_points; ++i)
+    {
+      for (size_t j(0); j < 3; ++j)
+      {
         _graphicsWindow->_points[i][j] = msg->pointlist[i][j];
       }
     }
@@ -195,33 +229,89 @@ void SimControlPanel::handlePointsLCM(const lcm::ReceiveBuffer *rbuf,
   }
 }
 
-void SimControlPanel::handleIndexmapLCM(const lcm::ReceiveBuffer *rbuf,
-                                      const std::string &chan,
-                                      const traversability_map_t *msg) {
+void SimControlPanel::handleResetSimLCM(const lcm::ReceiveBuffer *rbuf, const std::string &chan,
+                                        const reset_sim_t *msg)
+{
   (void)rbuf;
   (void)chan;
 
-  if(_graphicsWindow){
-    for(size_t i(0); i<_graphicsWindow->x_size; ++i){
-      for(size_t j(0); j<_graphicsWindow->y_size; ++j){
-        _graphicsWindow->_idx_map(i,j) = msg->map[i][j];
+  if (msg->reset)
+  {
+    FBModelState<double> homeState;
+    homeState.bodyPosition = Vec3<double>(0, 0, 0.27);
+    homeState.bodyOrientation = rpyToQuat(Vec3<double>(0, 0, 0));
+    homeState.bodyVelocity = SVec<double>::Zero();
+    homeState.q = DVec<double>(12);
+    homeState.q << -0.0, -0.7874, 1.7537, 0.0, -0.7874, 1.7537, -0.0, -0.7874, 1.7537, 0.0, -0.7874, 1.7537;
+    homeState.qd = DVec<double>(12);
+    homeState.qd.setZero();
+    homeState.reset = true;
+
+    _simulation->setRobotState(homeState);
+  }
+}
+
+void SimControlPanel::handleExtForceLCM(const lcm::ReceiveBuffer *rbuf, const std::string &chan,
+                                        const extForce_t *msg)
+{
+  // SVec<double> spatial_ext_force;
+  // vectorAligned<SVec<double>> sforces;
+  // spatial_ext_force.setZero();
+  // // You have to define external forces for all 18 bodies
+  // for (int i = 0; i < 18; i++)
+  // {
+  //   sforces.push_back(SVec<double>::Zero());
+  // }
+  
+  // // First three are moments, last three are line forces
+  // spatial_ext_force.head(3) << msg->torque[0], msg->torque[1], msg->torque[2];
+  // spatial_ext_force.tail(3) << msg->force[0], msg->force[1], msg->force[2];
+  
+  // sforces[5]=spatial_ext_force;
+  // _simulation->_simulator->setAllExternalForces(sforces);
+  SVec<double> kickVel;
+  kickVel.setZero();
+  kickVel.tail(3) << msg->force[0], msg->force[1], msg->force[2];
+  FBModelState<double> state = _simulation->getRobotState();
+  state.bodyVelocity += kickVel;
+  _simulation->setRobotState(state);
+  printf("kick is applied \n");
+}                                        
+
+void SimControlPanel::handleIndexmapLCM(const lcm::ReceiveBuffer *rbuf,
+                                        const std::string &chan,
+                                        const traversability_map_t *msg)
+{
+  (void)rbuf;
+  (void)chan;
+
+  if (_graphicsWindow)
+  {
+    for (size_t i(0); i < _graphicsWindow->x_size; ++i)
+    {
+      for (size_t j(0); j < _graphicsWindow->y_size; ++j)
+      {
+        _graphicsWindow->_idx_map(i, j) = msg->map[i][j];
       }
     }
     _graphicsWindow->_indexmap_data_update = true;
   }
 }
 
-
 void SimControlPanel::handleHeightmapLCM(const lcm::ReceiveBuffer *rbuf,
-                                      const std::string &chan,
-                                      const heightmap_t *msg) {
+                                         const std::string &chan,
+                                         const heightmap_t *msg)
+{
   (void)rbuf;
   (void)chan;
 
-  if(_graphicsWindow){
-    for(size_t i(0); i<_graphicsWindow->x_size; ++i){
-      for(size_t j(0); j<_graphicsWindow->y_size; ++j){
-        _graphicsWindow->_map(i,j) = msg->map[i][j];
+  if (_graphicsWindow)
+  {
+    for (size_t i(0); i < _graphicsWindow->x_size; ++i)
+    {
+      for (size_t j(0); j < _graphicsWindow->y_size; ++j)
+      {
+        _graphicsWindow->_map(i, j) = msg->map[i][j];
       }
     }
     _graphicsWindow->_pos[0] = msg->robot_loc[0];
@@ -233,30 +323,37 @@ void SimControlPanel::handleHeightmapLCM(const lcm::ReceiveBuffer *rbuf,
 }
 
 void SimControlPanel::handleSpiDebug(const lcm::ReceiveBuffer *rbuf, const std::string &chan,
-                                     const leg_control_data_lcmt *msg) {
+                                     const leg_control_data_lcmt *msg)
+{
   (void)rbuf;
   (void)chan;
   MiniCheetahDebugData ddata;
 
   u32 idx = 0;
-  for(u32 leg = 0; leg < 4; leg++) {
-    for(u32 joint = 0; joint < 3; joint++) {
+  for (u32 leg = 0; leg < 4; leg++)
+  {
+    for (u32 joint = 0; joint < 3; joint++)
+    {
       ddata.p[leg][joint] = msg->q[idx];
       ddata.v[leg][joint] = msg->qd[idx];
       idx++;
     }
   }
 
-  if(_mcDebugWindow.setDebugData(ddata)) {
+  if (_mcDebugWindow.setDebugData(ddata))
+  {
     MiniCheetahDebugCommand cmd;
     _mcDebugWindow.getDebugCommand(cmd);
 
     leg_control_command_lcmt lcm_cmd;
     memset(&lcm_cmd, 0, sizeof(leg_control_command_lcmt));
     idx = 0;
-    for(u32 leg = 0; leg < 4; leg++) {
-      for(u32 joint = 0; joint < 3; joint++) {
-        if(cmd.enable[leg][joint]) {
+    for (u32 leg = 0; leg < 4; leg++)
+    {
+      for (u32 joint = 0; joint < 3; joint++)
+      {
+        if (cmd.enable[leg][joint])
+        {
           lcm_cmd.q_des[idx] = cmd.qd[leg][joint];
           lcm_cmd.kp_joint[idx] = cmd.kp[leg][joint];
           lcm_cmd.kd_joint[idx] = cmd.kd[leg][joint];
@@ -267,11 +364,10 @@ void SimControlPanel::handleSpiDebug(const lcm::ReceiveBuffer *rbuf, const std::
 
     _miniCheetahDebugLCM.publish("spi_debug_cmd", &lcm_cmd);
   }
-
 }
 
-
-SimControlPanel::~SimControlPanel() {
+SimControlPanel::~SimControlPanel()
+{
   delete _simulation;
   delete _interfaceTaskManager;
   delete _robotInterface;
@@ -282,81 +378,98 @@ SimControlPanel::~SimControlPanel() {
 /*!
  * External notification of UI update needed
  */
-void SimControlPanel::update_ui() {
+void SimControlPanel::update_ui()
+{
   updateUiEnable();
 }
 
 /*!
  * Enable/disable buttons as needed based on what is running
  */
-void SimControlPanel::updateUiEnable() {
+void SimControlPanel::updateUiEnable()
+{
   ui->startButton->setEnabled(!(isRunning() || isError()));
   ui->stopButton->setEnabled(isRunning() || isError());
   ui->joystickButton->setEnabled(isRunning() || isError());
   ui->robotTable->setEnabled(isRunning() || isError());
   ui->goHomeButton->setEnabled(isRunning() || isError());
 
-  switch(_state) {
-    case SimulationWindowState::STOPPED:
-      ui->simulatorStateLabel->setText("Simulator State: Stopped");
-      ui->stopButton->setText("Stop");
-      break;
-    case SimulationWindowState::RUNNING:
-      ui->simulatorStateLabel->setText("Simulator State: Running");
-      ui->stopButton->setText("Stop");
-      break;
-    case SimulationWindowState::ERROR:
-      ui->simulatorStateLabel->setText("Simulator State: Error");
-      ui->stopButton->setText("Reset Error");
-      break;
+  switch (_state)
+  {
+  case SimulationWindowState::STOPPED:
+    ui->simulatorStateLabel->setText("Simulator State: Stopped");
+    ui->stopButton->setText("Stop");
+    break;
+  case SimulationWindowState::RUNNING:
+    ui->simulatorStateLabel->setText("Simulator State: Running");
+    ui->stopButton->setText("Stop");
+    break;
+  case SimulationWindowState::ERROR:
+    ui->simulatorStateLabel->setText("Simulator State: Error");
+    ui->stopButton->setText("Reset Error");
+    break;
   }
 
-  if((isRunning() || isError()) && _simulation) {
-    if(_simulation->isRobotConnected()) {
+  if ((isRunning() || isError()) && _simulation)
+  {
+    if (_simulation->isRobotConnected())
+    {
       ui->simulatorConnectedLabel->setText("Sim Connection: Yes");
-    } else {
+    }
+    else
+    {
       ui->simulatorConnectedLabel->setText("Sim Connection: No");
     }
-  } else {
+  }
+  else
+  {
     ui->simulatorConnectedLabel->setText("Sim Connection: N/A");
   }
-
 }
 
 /*!
  * Update the name of the loaded terrain file label
  */
-void SimControlPanel::updateTerrainLabel() {
+void SimControlPanel::updateTerrainLabel()
+{
   ui->terrainFileLabel->setText(QString(_terrainFileName.c_str()));
 }
 
 /*!
  * Simulation error
  */
-void SimControlPanel::errorCallback(std::string errorMessage) {
-  _state = SimulationWindowState::ERROR; // go to error state
-  updateUiEnable(); // update UI
+void SimControlPanel::errorCallback(std::string errorMessage)
+{
+  _state = SimulationWindowState::ERROR;                   // go to error state
+  updateUiEnable();                                        // update UI
   createErrorMessage("Simulation Error\n" + errorMessage); // display error dialog
 }
 
 /*!
  * Start a simulation/robot run
  */
-void SimControlPanel::on_startButton_clicked() {
+void SimControlPanel::on_startButton_clicked()
+{
   // get robot type
   RobotType robotType;
 
-  if (ui->cheetah3Button->isChecked()) {
+  if (ui->cheetah3Button->isChecked())
+  {
     robotType = RobotType::CHEETAH_3;
-  } else if (ui->miniCheetahButton->isChecked()) {
+  }
+  else if (ui->miniCheetahButton->isChecked())
+  {
     robotType = RobotType::MINI_CHEETAH;
-  } else {
+  }
+  else
+  {
     createErrorMessage("Error: you must select a robot");
     return;
   }
 
   // get run type
-  if (!ui->simulatorButton->isChecked() && !ui->robotButton->isChecked()) {
+  if (!ui->simulatorButton->isChecked() && !ui->robotButton->isChecked())
+  {
     createErrorMessage(
         "Error: you must select either robot or simulation mode");
     return;
@@ -370,57 +483,63 @@ void SimControlPanel::on_startButton_clicked() {
   _graphicsWindow->show();
   _graphicsWindow->resize(1280, 720);
 
-  if (_simulationMode) {
+  if (_simulationMode)
+  {
     // run a simulation
 
-    try {
+    try
+    {
       printf("[SimControlPanel] Initialize simulator...\n");
       _simulation = new Simulation(robotType, _graphicsWindow, _parameters, _userParameters,
-        // this will allow the simulation thread to poke us when there's a state change
-        [this](){
-        QMetaObject::invokeMethod(this,"update_ui");
-      });
+                                   // this will allow the simulation thread to poke us when there's a state change
+                                   [this]()
+                                   {
+                                     QMetaObject::invokeMethod(this, "update_ui");
+                                   });
       loadSimulationParameters(_simulation->getSimParams());
       loadRobotParameters(_simulation->getRobotParams());
 
       // terrain
       printf("[SimControlParameter] Load terrain...\n");
       _simulation->loadTerrainFile(_terrainFileName);
-    } catch (std::exception& e) {
+    }
+    catch (std::exception &e)
+    {
       createErrorMessage("FATAL: Exception thrown during simulator setup\n" + std::string(e.what()));
       throw e;
     }
 
-
-
-
     // start sim
     _simThread = std::thread(
 
-      // simulation function
-      [this]() {
+        // simulation function
+        [this]()
+        {
+          // error callback function
+          std::function<void(std::string)> error_function = [this](std::string str)
+          {
+            // Qt will take care of doing the call in the UI event loop
+            QMetaObject::invokeMethod(this, [=]()
+                                      { this->errorCallback(str); });
+          };
 
-        // error callback function
-        std::function<void(std::string)> error_function = [this](std::string str) {
-          // Qt will take care of doing the call in the UI event loop
-          QMetaObject::invokeMethod(this, [=]() {
-            this->errorCallback(str);
-          });
-        };
-
-        try {
-          // pass error callback to simulator
-          _simulation->runAtSpeed(error_function);
-        } catch (std::exception &e) {
-          // also catch exceptions
-          error_function("Exception thrown in simulation thread: " + std::string(e.what()));
-        }
-
-      });
+          try
+          {
+            // pass error callback to simulator
+            _simulation->runAtSpeed(error_function);
+          }
+          catch (std::exception &e)
+          {
+            // also catch exceptions
+            error_function("Exception thrown in simulation thread: " + std::string(e.what()));
+          }
+        });
 
     // graphics start
     _graphicsWindow->setAnimating(true);
-  } else {
+  }
+  else
+  {
     printf("[SimControlPanel] Init Robot Interface...\n");
     _interfaceTaskManager = new PeriodicTaskManager;
     _robotInterface =
@@ -437,15 +556,20 @@ void SimControlPanel::on_startButton_clicked() {
 /*!
  * Stop the currently running simulation or robot connection
  */
-void SimControlPanel::on_stopButton_clicked() {
-  if (_simulation) {
+void SimControlPanel::on_stopButton_clicked()
+{
+  if (_simulation)
+  {
     _simulation->stop();
     _simThread.join();
-  } else {
+  }
+  else
+  {
     _robotInterface->stopInterface();
   }
 
-  if (_graphicsWindow) {
+  if (_graphicsWindow)
+  {
     _graphicsWindow->setAnimating(false);
     _graphicsWindow->hide();
   }
@@ -464,13 +588,12 @@ void SimControlPanel::on_stopButton_clicked() {
   updateUiEnable();
 }
 
-
-
 /*!
  * Populate the simulator qtable parameters
  */
 void SimControlPanel::loadSimulationParameters(
-    SimulatorControlParameters& params) {
+    SimulatorControlParameters &params)
+{
   _ignoreTableCallbacks = true;
   updateQtableWithParameters(params, *ui->simulatorTable);
   _ignoreTableCallbacks = false;
@@ -479,7 +602,8 @@ void SimControlPanel::loadSimulationParameters(
 /*!
  * Populate the robot qtable parameters
  */
-void SimControlPanel::loadRobotParameters(RobotControlParameters& params) {
+void SimControlPanel::loadRobotParameters(RobotControlParameters &params)
+{
   _ignoreTableCallbacks = true;
   updateQtableWithParameters(params, *ui->robotTable);
   _ignoreTableCallbacks = false;
@@ -488,7 +612,8 @@ void SimControlPanel::loadRobotParameters(RobotControlParameters& params) {
 /*!
  * Populate the robot qtable parameters
  */
-void SimControlPanel::loadUserParameters(ControlParameters& params) {
+void SimControlPanel::loadUserParameters(ControlParameters &params)
+{
   _ignoreTableCallbacks = true;
   updateQtableWithParameters(params, *ui->userControlTable);
   _ignoreTableCallbacks = false;
@@ -497,27 +622,33 @@ void SimControlPanel::loadUserParameters(ControlParameters& params) {
 /*!
  * Attempt to reset the joystick if a new one is connected
  */
-void SimControlPanel::on_joystickButton_clicked() {
-  if(isRunning()) {
+void SimControlPanel::on_joystickButton_clicked()
+{
+  if (isRunning())
+  {
     _graphicsWindow->resetGameController();
-    JoystickTestWindow* window = new JoystickTestWindow(_graphicsWindow->getGameController());
+    JoystickTestWindow *window = new JoystickTestWindow(_graphicsWindow->getGameController());
     window->exec();
     delete window;
   }
 }
 
-void SimControlPanel::on_driverButton_clicked() {
+void SimControlPanel::on_driverButton_clicked()
+{
   _mcDebugWindow.show();
 }
 
 /*!
  * Respond to a change in the simulator table.
  */
-void SimControlPanel::on_simulatorTable_cellChanged(int row, int column) {
-  if (_ignoreTableCallbacks) return;
+void SimControlPanel::on_simulatorTable_cellChanged(int row, int column)
+{
+  if (_ignoreTableCallbacks)
+    return;
 
   // we only allow values to change, which are in column 1
-  if (column != 1) {
+  if (column != 1)
+  {
     return;
   }
 
@@ -525,27 +656,32 @@ void SimControlPanel::on_simulatorTable_cellChanged(int row, int column) {
   auto cell = ui->simulatorTable->item(row, 0);
   std::string cellName = cell->text().toStdString();
 
-  if (cellName == "") {
+  if (cellName == "")
+  {
     return;
   }
 
   // get the parameters
-  auto& parameter = _parameters.collection.lookup(cellName);
+  auto &parameter = _parameters.collection.lookup(cellName);
   ControlParameterValueKind kind = parameter._kind;
   ControlParameterValue oldValue = parameter.get(kind);
 
   bool success = true;
 
   // attempt to set, based on string.
-  try {
+  try
+  {
     parameter.setFromString(
         ui->simulatorTable->item(row, 1)->text().toStdString());
-  } catch (std::exception& e) {
+  }
+  catch (std::exception &e)
+  {
     success = false;
   }
 
   // if it fails (bad user input string), restore to the old value
-  if (!success) {
+  if (!success)
+  {
     printf("[ERROR] invalid data, restoring old data!\n");
     // set parameter value
     parameter.set(oldValue, kind);
@@ -557,7 +693,9 @@ void SimControlPanel::on_simulatorTable_cellChanged(int row, int column) {
     ui->simulatorTable->item(row, 1)->setText(
         QString(_parameters.collection.lookup(cellName).toString().c_str()));
     _ignoreTableCallbacks = false;
-  } else {
+  }
+  else
+  {
     // this update "rewrites" the value in the table.  If it's an integer, it kills any
     // decimal.  If it's a float, it puts in scientific notation if needed.
     _ignoreTableCallbacks = true;
@@ -570,10 +708,12 @@ void SimControlPanel::on_simulatorTable_cellChanged(int row, int column) {
 /*!
  * Save simulation config to file
  */
-void SimControlPanel::on_saveSimulatorButton_clicked() {
+void SimControlPanel::on_saveSimulatorButton_clicked()
+{
   QString fileName = QFileDialog::getSaveFileName(
       nullptr, ("Save Simulator Table Values"), "../config", "All Files (*)");
-  if (fileName == nullptr || fileName == "") {
+  if (fileName == nullptr || fileName == "")
+  {
     createErrorMessage("File name is invalid");
     return;
   }
@@ -586,16 +726,19 @@ void SimControlPanel::on_saveSimulatorButton_clicked() {
 /*!
  * Load simulation config from file
  */
-void SimControlPanel::on_loadSimulatorButton_clicked() {
+void SimControlPanel::on_loadSimulatorButton_clicked()
+{
   QString fileName = QFileDialog::getOpenFileName(
       nullptr, ("Load Simulator Table Values"), "../config", "All Files (*)");
-  if (fileName == nullptr || fileName == "") {
+  if (fileName == nullptr || fileName == "")
+  {
     createErrorMessage("File name is invalid");
     return;
   };
   _parameters.collection.clearAllSet();
   _parameters.initializeFromYamlFile(fileName.toStdString());
-  if (!_parameters.collection.checkIfAllSet()) {
+  if (!_parameters.collection.checkIfAllSet())
+  {
     printf(
         "new settings file %s doesn't contain the following simulator "
         "parameters:\n%s\n",
@@ -607,20 +750,24 @@ void SimControlPanel::on_loadSimulatorButton_clicked() {
   _parameters.unlockMutex();
 }
 
-void SimControlPanel::on_robotTable_cellChanged(int row, int column) {
-  if (_ignoreTableCallbacks) return;
-  if (column != 1) {
+void SimControlPanel::on_robotTable_cellChanged(int row, int column)
+{
+  if (_ignoreTableCallbacks)
+    return;
+  if (column != 1)
+  {
     return;
   }
 
   auto cell = ui->robotTable->item(row, 0);
   std::string cellName = cell->text().toStdString();
 
-  if (cellName == "") {
+  if (cellName == "")
+  {
     return;
   }
 
-  auto& parameter = (_simulationMode ? _simulation->getRobotParams()
+  auto &parameter = (_simulationMode ? _simulation->getRobotParams()
                                      : _robotInterface->getParams())
                         .collection.lookup(cellName);
   ControlParameterValueKind kind = parameter._kind;
@@ -628,13 +775,17 @@ void SimControlPanel::on_robotTable_cellChanged(int row, int column) {
 
   bool success = true;
 
-  try {
+  try
+  {
     parameter.setFromString(ui->robotTable->item(row, 1)->text().toStdString());
-  } catch (std::exception& e) {
+  }
+  catch (std::exception &e)
+  {
     success = false;
   }
 
-  if (!success) {
+  if (!success)
+  {
     printf("[ERROR] invalid data, restoring old data!\n");
     parameter.set(oldValue, kind);
 
@@ -646,9 +797,13 @@ void SimControlPanel::on_robotTable_cellChanged(int row, int column) {
                     .toString()
                     .c_str()));
     _ignoreTableCallbacks = false;
-  } else {
-    if (_simulationMode) {
-      if (_simulation->isRobotConnected()) {
+  }
+  else
+  {
+    if (_simulationMode)
+    {
+      if (_simulation->isRobotConnected())
+      {
         _simulation->sendControlParameter(
             cellName, parameter.get(parameter._kind), parameter._kind, false);
       }
@@ -657,37 +812,45 @@ void SimControlPanel::on_robotTable_cellChanged(int row, int column) {
       ui->robotTable->item(row, 1)->setText(
           QString(parameter.toString().c_str()));
       _ignoreTableCallbacks = false;
-    } else {
+    }
+    else
+    {
       _robotInterface->sendControlParameter(
           cellName, parameter.get(parameter._kind), parameter._kind, false);
     }
   }
 }
 
-void SimControlPanel::on_saveRobotButton_clicked() {
+void SimControlPanel::on_saveRobotButton_clicked()
+{
   QString fileName = QFileDialog::getSaveFileName(
       nullptr, ("Save Robot Table Values"), "../config", "All Files (*)");
-  if (fileName == nullptr || fileName == "") {
+  if (fileName == nullptr || fileName == "")
+  {
     createErrorMessage("File name is invalid");
     return;
   }
   _simulation->getRobotParams().writeToYamlFile(fileName.toStdString());
 }
 
-void SimControlPanel::on_loadRobotButton_clicked() {
+void SimControlPanel::on_loadRobotButton_clicked()
+{
   QString fileName = QFileDialog::getOpenFileName(
       nullptr, ("Load Quadruped Table Values"), "../config", "All Files (*)");
-  if (fileName == nullptr || fileName == "") {
+  if (fileName == nullptr || fileName == "")
+  {
     createErrorMessage("File name is invalid");
     return;
   }
 
-  if (_simulationMode) {
+  if (_simulationMode)
+  {
     _simulation->getRobotParams().lockMutex();
     _simulation->getRobotParams().collection.clearAllSet();
     _simulation->getRobotParams().initializeFromYamlFile(
         fileName.toStdString());
-    if (!_simulation->getRobotParams().collection.checkIfAllSet()) {
+    if (!_simulation->getRobotParams().collection.checkIfAllSet())
+    {
       printf(
           "new settings file %s doesn't contain the following robot "
           "parameters:\n%s\n",
@@ -697,18 +860,23 @@ void SimControlPanel::on_loadRobotButton_clicked() {
     }
     loadRobotParameters(_simulation->getRobotParams());
 
-    if (_simulation->isRobotConnected()) {
-      for (auto& kv : _simulation->getRobotParams().collection._map) {
+    if (_simulation->isRobotConnected())
+    {
+      for (auto &kv : _simulation->getRobotParams().collection._map)
+      {
         _simulation->sendControlParameter(
             kv.first, kv.second->get(kv.second->_kind), kv.second->_kind, false);
       }
     }
     _simulation->getRobotParams().unlockMutex();
-  } else {
+  }
+  else
+  {
     _robotInterface->getParams().lockMutex();
     _robotInterface->getParams().collection.clearAllSet();
     _robotInterface->getParams().initializeFromYamlFile(fileName.toStdString());
-    if (!_robotInterface->getParams().collection.checkIfAllSet()) {
+    if (!_robotInterface->getParams().collection.checkIfAllSet())
+    {
       printf(
           "new settings file %s doesn't contain the following robot "
           "parameters:\n%s\n",
@@ -718,7 +886,8 @@ void SimControlPanel::on_loadRobotButton_clicked() {
     }
     loadRobotParameters(_robotInterface->getParams());
 
-    for (auto& kv : _robotInterface->getParams().collection._map) {
+    for (auto &kv : _robotInterface->getParams().collection._map)
+    {
       _robotInterface->sendControlParameter(
           kv.first, kv.second->get(kv.second->_kind), kv.second->_kind, false);
     }
@@ -727,10 +896,12 @@ void SimControlPanel::on_loadRobotButton_clicked() {
   }
 }
 
-void SimControlPanel::on_setTerrainButton_clicked() {
+void SimControlPanel::on_setTerrainButton_clicked()
+{
   QString fileName = QFileDialog::getOpenFileName(
       nullptr, ("Load Terrain Definition"), "../config", "All Files (*)");
-  if (fileName == nullptr || fileName == "") {
+  if (fileName == nullptr || fileName == "")
+  {
     createErrorMessage("File name is invalid");
     return;
   }
@@ -739,35 +910,43 @@ void SimControlPanel::on_setTerrainButton_clicked() {
   updateTerrainLabel();
 }
 
-void SimControlPanel::on_userControlTable_cellChanged(int row, int column) {
-  if (_ignoreTableCallbacks) return;
-  if (column != 1) {
+void SimControlPanel::on_userControlTable_cellChanged(int row, int column)
+{
+  if (_ignoreTableCallbacks)
+    return;
+  if (column != 1)
+  {
     return;
   }
 
   auto cell = ui->userControlTable->item(row, 0);
   std::string cellName = cell->text().toStdString();
 
-  if (cellName == "") {
+  if (cellName == "")
+  {
     return;
   }
 
-  auto& parameter = _userParameters.collection.lookup(cellName);
-//  auto& parameter = (_simulationMode ? _simulation->getRobotParams()
-//                                     : _robotInterface->getParams())
-//      .collection.lookup(cellName);
+  auto &parameter = _userParameters.collection.lookup(cellName);
+  //  auto& parameter = (_simulationMode ? _simulation->getRobotParams()
+  //                                     : _robotInterface->getParams())
+  //      .collection.lookup(cellName);
   ControlParameterValueKind kind = parameter._kind;
   ControlParameterValue oldValue = parameter.get(kind);
 
   bool success = true;
 
-  try {
+  try
+  {
     parameter.setFromString(ui->userControlTable->item(row, 1)->text().toStdString());
-  } catch (std::exception& e) {
+  }
+  catch (std::exception &e)
+  {
     success = false;
   }
 
-  if (!success) {
+  if (!success)
+  {
     printf("[ERROR] invalid data, restoring old data!\n");
     parameter.set(oldValue, kind);
 
@@ -780,10 +959,15 @@ void SimControlPanel::on_userControlTable_cellChanged(int row, int column) {
                     .toString()
                     .c_str()));
     _ignoreTableCallbacks = false;
-  } else {
-    if(isRunning() || isError()) {
-      if (_simulationMode) {
-        if (_simulation && _simulation->isRobotConnected()) {
+  }
+  else
+  {
+    if (isRunning() || isError())
+    {
+      if (_simulationMode)
+      {
+        if (_simulation && _simulation->isRobotConnected())
+        {
           _simulation->sendControlParameter(
               cellName, parameter.get(parameter._kind), parameter._kind, true);
         }
@@ -792,18 +976,22 @@ void SimControlPanel::on_userControlTable_cellChanged(int row, int column) {
         ui->userControlTable->item(row, 1)->setText(
             QString(parameter.toString().c_str()));
         _ignoreTableCallbacks = false;
-      } else {
-      _robotInterface->sendControlParameter(
-          cellName, parameter.get(parameter._kind), parameter._kind, true);
+      }
+      else
+      {
+        _robotInterface->sendControlParameter(
+            cellName, parameter.get(parameter._kind), parameter._kind, true);
       }
     }
   }
 }
 
-void SimControlPanel::on_loadUserButton_clicked() {
+void SimControlPanel::on_loadUserButton_clicked()
+{
   QString fileName = QFileDialog::getOpenFileName(
       nullptr, ("Load User Table Values"), "../config", "All Files (*)");
-  if (fileName == nullptr || fileName == "") {
+  if (fileName == nullptr || fileName == "")
+  {
     createErrorMessage("File name is invalid");
     return;
   }
@@ -816,35 +1004,44 @@ void SimControlPanel::on_loadUserButton_clicked() {
   _userParameters.unlockMutex();
   _loadedUserSettings = true;
 
-  if(isRunning() || isError()) {
-    if (_simulationMode) {
-      if (_simulation && _simulation->isRobotConnected()) {
-        for (auto& kv : _userParameters.collection._map) {
+  if (isRunning() || isError())
+  {
+    if (_simulationMode)
+    {
+      if (_simulation && _simulation->isRobotConnected())
+      {
+        for (auto &kv : _userParameters.collection._map)
+        {
           _simulation->sendControlParameter(
               kv.first, kv.second->get(kv.second->_kind), kv.second->_kind, true);
         }
       }
-    } else {
-    for (auto& kv : _userParameters.collection._map) {
-      _robotInterface->sendControlParameter(
-          kv.first, kv.second->get(kv.second->_kind), kv.second->_kind, true);
     }
-
+    else
+    {
+      for (auto &kv : _userParameters.collection._map)
+      {
+        _robotInterface->sendControlParameter(
+            kv.first, kv.second->get(kv.second->_kind), kv.second->_kind, true);
+      }
     }
   }
 }
 
-void SimControlPanel::on_saveUserButton_clicked() {
+void SimControlPanel::on_saveUserButton_clicked()
+{
   QString fileName = QFileDialog::getSaveFileName(
       nullptr, ("Save User Table Values"), "../config", "All Files (*)");
-  if (fileName == nullptr || fileName == "") {
+  if (fileName == nullptr || fileName == "")
+  {
     createErrorMessage("File name is invalid");
     return;
   }
   _userParameters.writeToYamlFile(fileName.toStdString());
 }
 
-void SimControlPanel::on_goHomeButton_clicked() {
+void SimControlPanel::on_goHomeButton_clicked()
+{
   printf("go home\n");
   FBModelState<double> homeState;
   // homeState.bodyOrientation << 1, 0, 0, 0;
@@ -853,23 +1050,21 @@ void SimControlPanel::on_goHomeButton_clicked() {
   // homeState.q = DVec<double>(12);
   // homeState.q << -0.05, -0.8, 1.7, 0.05, -0.8, 1.7, -0.05, -0.8, 1.7, 0.05, -0.8, 1.7;
   // homeState.qd = homeState.q;
-  
 
   homeState.bodyPosition = Vec3<double>(0, 0, 0.2565);
   homeState.bodyOrientation = rpyToQuat(Vec3<double>(0, -0.12, 0));
   homeState.bodyVelocity = SVec<double>::Zero();
   homeState.q = DVec<double>(12);
-  homeState.q << 0, -0.65,1.569, 0, -0.65,1.569, 0, -0.6, 1.8, 0, -0.6, 1.8;
-  homeState.qd  = DVec<double>(12);
+  homeState.q << 0, -0.65, 1.569, 0, -0.65, 1.569, 0, -0.6, 1.8, 0, -0.6, 1.8;
+  homeState.qd = DVec<double>(12);
   homeState.qd.setZero();
   homeState.reset = true;
 
   _simulation->setRobotState(homeState);
-
-
 }
 
-void SimControlPanel::on_kickButton_clicked() {
+void SimControlPanel::on_kickButton_clicked()
+{
   // velocity of the floating base:
   SVec<double> kickVelocity;
   kickVelocity << ui->kickAngularX->text().toDouble(),
