@@ -177,6 +177,8 @@ void MHPC_LLController::locomotion_ctrl()
 
     updateContactEstimate();
 
+    applyVelocityDisturbance();
+
     Vec12<float> tau_ff(12);
     tau_ff = mpc_solution.torque;
 
@@ -412,11 +414,12 @@ void MHPC_LLController::applyVelocityDisturbance()
         const Vec3<float> kick_linear = userParameters.kick_linear.cast<float>()/kick_count;
         const Vec3<float> kick_angular = userParameters.kick_angular.cast<float>()/kick_count;
         
+        std::cout << "kick disturbance = " << kick_linear.transpose() << "\n";
         std::copy(kick_linear.begin(), kick_linear.end(), kick_lcmt.linear);
         std::copy(kick_angular.begin(), kick_angular.end(), kick_lcmt.angular);
-    }
-    
-    kick_lcm.publish("ext_force", &kick_lcmt);
+
+        kick_lcm.publish("ext_force", &kick_lcmt);
+    }    
 }
 
 
