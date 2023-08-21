@@ -79,6 +79,8 @@ public:
     void handleMPCLCMthread();    
 
     void applyVelocityDisturbance();
+
+    void drawDisturbanceArrow(const Vec3<float>& kick_linear_vel);
         
 protected:
     MHPCLLUserParameters userParameters;

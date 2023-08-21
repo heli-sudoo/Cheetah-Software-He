@@ -414,14 +414,34 @@ void MHPC_LLController::applyVelocityDisturbance()
         const Vec3<float> kick_linear = userParameters.kick_linear.cast<float>()/kick_count;
         const Vec3<float> kick_angular = userParameters.kick_angular.cast<float>()/kick_count;
         
-        std::cout << "kick disturbance = " << kick_linear.transpose() << "\n";
+        // std::cout << "kick disturbance = " << kick_linear.transpose() << "\n";
         std::copy(kick_linear.begin(), kick_linear.end(), kick_lcmt.linear);
         std::copy(kick_angular.begin(), kick_angular.end(), kick_lcmt.angular);
 
         kick_lcm.publish("ext_force", &kick_lcmt);
+
+        drawDisturbanceArrow(kick_linear);
     }    
 }
 
+void MHPC_LLController::drawDisturbanceArrow(const Vec3<float>& kick_linear_vel)
+{
+    auto *arrow = _visualizationData->addArrow();
+    if (arrow)
+    {
+        const auto& pCoM = _stateEstimate->position;        
+        float scale = 7.0;
+        arrow->color << 1.0, 0, 0, 1.0;        
+        arrow->head_length = kick_linear_vel.norm()*0.125*scale;
+        arrow->head_width = 0.5 * arrow->head_length;
+        arrow->shaft_width = 0.6 * arrow->head_width;
+        // Vec3<float> offset(0, 0.1, 0);
+        Vec3<float> offset(0.15, 0, 0);
+        arrow->base_position = pCoM - scale*kick_linear_vel - offset;
+        arrow->direction = scale*kick_linear_vel;
+    }
+    
+}
 
 void MHPC_LLController::standup_ctrl()
 {
