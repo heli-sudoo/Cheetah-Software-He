@@ -168,9 +168,11 @@ void LegController<T>::updateCommand(SpiCommand* spiCommand) {
     legTorque += datas[leg].J.transpose() * footForce;
 
     // set command:
-    spiCommand->tau_abad_ff[leg] = legTorque(0);
-    spiCommand->tau_hip_ff[leg] = legTorque(1);
-    spiCommand->tau_knee_ff[leg] = legTorque(2);
+    // auto clap = [](const T& a) {return(fmax(fmin(a, 17.0), -17.0));};
+    auto clap = [](const T& a) {return a;};
+    spiCommand->tau_abad_ff[leg] = clap(legTorque(0));
+    spiCommand->tau_hip_ff[leg] = clap(legTorque(1));
+    spiCommand->tau_knee_ff[leg] = clap(legTorque(2));
 
     // joint space pd
     // joint space PD
