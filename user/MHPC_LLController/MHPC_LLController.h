@@ -1,16 +1,18 @@
 #ifndef MHPC_LLCONTROLLER_H
 #define MHPC_LLCONTROLLER_H
 
-#include <RobotController.h>
 #include <deque>
 #include <mutex>
 #include <thread>
 #include <lcm/lcm-cpp.hpp>
+#include <RobotController.h>
+
 #include "MHPC_Command_lcmt.hpp"
 #include "MHPC_Data_lcmt.hpp"
 #include "MHPCLLUserParameters.h"
 #include "VWBC/include/VWBC.h"
 #include "extVelocity_lcmt.hpp"
+#include "vwbc_info_lcmt.hpp"
 
 struct MPCSolution
 {
@@ -68,6 +70,7 @@ public:
     void standup_ctrl_run();
     void locomotion_ctrl();
     void fixYawFlip();
+    void fixRollFlip();
    
     void resolveMPCIfNeeded();    
     void updateStateEstimate();
@@ -140,9 +143,10 @@ public:
     // WBC
     quadloco::VWBC wbc_;
 
-    // Disturbance
-    lcm::LCM kick_lcm;
+    // Disturbance and other utility information
+    lcm::LCM utility_lcm;
     extVelocity_lcmt kick_lcmt;
+    vwbc_info_lcmt vwbc_info_lcmt_data;
 
 private:
     Vec24<float> mpc_control;
@@ -157,6 +161,13 @@ private:
     float raw_yaw_pre;
     float raw_yaw_cur;
     float yaw;
+
+     // Tracking roll angle
+    int roll_flip_plus_times;
+    int roll_flip_mins_times;
+    float raw_roll_pre;
+    float raw_roll_cur;
+    float roll;
 };
 
 #endif

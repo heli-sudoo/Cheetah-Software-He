@@ -24,7 +24,7 @@ enum RC_MODE
 MHPC_LLController::MHPC_LLController() : 
                                         mpc_cmds_lcm(getLcmUrl(255)), 
                                         mpc_data_lcm(getLcmUrl(255)),
-                                        kick_lcm(getLcmUrl(255))                                       
+                                        utility_lcm(getLcmUrl(255))                                       
 {
     if (!mpc_cmds_lcm.good())
     {
@@ -40,7 +40,7 @@ MHPC_LLController::MHPC_LLController() :
         printf(RESET);
     }
 
-    if (!kick_lcm.good())
+    if (!utility_lcm.good())
     {
         printf(RED);
         printf("Failed to initialize lcm for kick disturbance \n");
@@ -66,14 +66,20 @@ void MHPC_LLController::initializeController()
 {
     mpc_cmds_lcm.subscribe("MHPC_COMMAND", &MHPC_LLController::handleMPCCommand, this);
     mpcLCMthread = std::thread(&MHPC_LLController::handleMPCLCMthread, this);
+
     iter = 0;
     mpc_time = 0;
     iter_loco = 0;
     iter_between_mpc_update = 0;
-    nsteps_between_mpc_update = 15;
+    nsteps_between_mpc_update = 10;
+
     yaw_flip_plus_times = 0;
     yaw_flip_mins_times = 0;
     raw_yaw_cur = _stateEstimate->rpy[2];
+
+    roll_flip_plus_times = 0;
+    roll_flip_mins_times = 0;
+    raw_roll_cur = _stateEstimate->rpy[0];
 }
 
 /*
@@ -134,6 +140,8 @@ void MHPC_LLController::runController()
 
     fixYawFlip();
 
+    fixRollFlip();
+
     if (_controlParameters->use_rc > 0)
     {
         desired_command_mode = _desiredStateCommand->rcCommand->mode;
@@ -150,6 +158,12 @@ void MHPC_LLController::runController()
     {
     case CONTROL_MODE::locomotion:
     case RC_MODE::rc_locomotion:
+        if (mpc_time >= 0.8)
+        {
+            standup_ctrl();
+            break;
+        }
+        
         locomotion_ctrl();
         in_standup = false;
         break;
@@ -230,6 +244,18 @@ void MHPC_LLController::locomotion_ctrl()
         // get a solution
         wbc_.getSolution(tau_ff, qddDes);
 
+        // get solution status
+        quadloco::QPStatus qpstatus;
+        qpstatus = wbc_.getQPStatus();
+        if (userParameters.vwbc_info_lcm > 0.1)
+        {
+            vwbc_info_lcmt_data.success = qpstatus.success;
+            vwbc_info_lcmt_data.nWSR = qpstatus.nWSR;
+            vwbc_info_lcmt_data.cputime = qpstatus.cputime;
+            vwbc_info_lcmt_data.time = mpc_time;
+            utility_lcm.publish("vwbc_info", &vwbc_info_lcmt_data);
+        }
+        
         // qJd_des = vMeas.tail<12>() + qddDes.tail<12>()* _controlParameters->controller_dt;        
     }        
     
@@ -281,7 +307,7 @@ void MHPC_LLController::resolveMPCIfNeeded()
 void MHPC_LLController::updateStateEstimate()
 {
     const auto &se = _stateEstimator->getResult();
-    eul_se << se.rpy[2], se.rpy[1], se.rpy[0];
+    eul_se << yaw, se.rpy[1], roll;
     eulrate_se = omegaBodyToEulrate(eul_se, se.omegaBody);
 
     const auto& legdatas = _legController->datas;
@@ -348,6 +374,22 @@ void MHPC_LLController::fixYawFlip()
         yaw_flip_mins_times++;
     }
     yaw = raw_yaw_cur + 2 * PI * yaw_flip_plus_times - 2 * PI * yaw_flip_mins_times;
+}
+
+void MHPC_LLController::fixRollFlip()
+{
+    raw_roll_pre = raw_roll_cur;
+    raw_roll_cur = _stateEstimate->rpy[0];
+
+    if (raw_roll_cur - raw_roll_pre < -2) // pi -> -pi
+    {
+        roll_flip_plus_times++;
+    }
+    if (raw_roll_cur - raw_roll_pre > 2) // -pi -> pi
+    {
+        roll_flip_mins_times++;
+    }
+    roll = raw_roll_cur + 2 * PI * roll_flip_plus_times - 2 * PI * roll_flip_mins_times;
 }
 
 /*
@@ -418,7 +460,7 @@ void MHPC_LLController::applyVelocityDisturbance()
         std::copy(kick_linear.begin(), kick_linear.end(), kick_lcmt.linear);
         std::copy(kick_angular.begin(), kick_angular.end(), kick_lcmt.angular);
 
-        kick_lcm.publish("ext_force", &kick_lcmt);
+        utility_lcm.publish("ext_force", &kick_lcmt);
 
         drawDisturbanceArrow(kick_linear);
     }    
