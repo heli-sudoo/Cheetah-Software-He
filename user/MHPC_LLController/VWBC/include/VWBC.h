@@ -3,6 +3,7 @@
 #define VALUEFUNCTION_WBC_H
 
 #include <memory>
+#include <qpOASES.hpp>
 
 #include <pinocchio/fwd.hpp>
 #include <pinocchio/algorithm/rnea.hpp>
@@ -12,11 +13,19 @@
 #include <pinocchio/algorithm/aba.hpp>
 #include <pinocchio/algorithm/crba.hpp>
 #include <pinocchio/algorithm/contact-dynamics.hpp>
+
 #include "Task.h"
-#include <qpOASES.hpp>
+
 
 namespace quadloco
 {
+    struct QPStatus
+    {
+        int nWSR = 0;
+        int success = 0;    // 0 : fase; 1: success; 2; auxilary
+        float cputime = 0.0;
+    };
+    
     class VWBC
     {
     public:        
@@ -36,6 +45,7 @@ namespace quadloco
         void updateDesired(const Vec18<scalar_t>& qDes, const Vec18<scalar_t>& vDes, 
                     const Vec12<scalar_t>& tauDes);
         void solveProblem();                 
+
         template <typename T1, typename T2>
         void getSolution(Eigen::MatrixBase<T1>& tau_out, Eigen::MatrixBase<T2>& qdd_out)
         {            
@@ -47,7 +57,11 @@ namespace quadloco
             {
                 qdd_out[i] = qpSol[i];
             }
-        }           
+        }     
+
+        const QPStatus& getQPStatus() const{
+            return qpStatus_;
+        }      
 
         Cost formulateCosts();
         Cost formulateValueCost();
@@ -105,6 +119,7 @@ namespace quadloco
         scalar_t P_gain_{};
         scalar_t D_gain_{};
         bool     warm_start_{true};
+        QPStatus qpStatus_;        
         
     protected:
         // QP solution

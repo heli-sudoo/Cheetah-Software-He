@@ -142,7 +142,8 @@ namespace quadloco
         options.enableEqualities = qpOASES::BT_TRUE;
 
         qpProblem.setOptions(options);
-        int nWsr = 10;
+        int nWsr = 15;
+        double cputime = 0.002;
 
         // Initial guess of QP
         qpGuess.setZero(numDecisionVars_);
@@ -153,15 +154,20 @@ namespace quadloco
         // Solve the QP problem with initial primal guess        
         matrix_t A = constraints.A_.transpose();    // By default, eigen matrix is column-major. A transpose is needed here.
         auto rval = qpProblem.init(costs.H_.data(), costs.g_.data(), A.data(), nullptr, nullptr,
-                       constraints.lb_A_.data(), constraints.ub_A_.data(), nWsr, nullptr, qpGuess.data());                                         
+                       constraints.lb_A_.data(), constraints.ub_A_.data(), nWsr, &cputime, qpGuess.data());                                         
 
+        // Update QP solve status and set success to false by default
+        qpStatus_.nWSR = nWsr;
+        qpStatus_.cputime = cputime;
+        qpStatus_.success = 0;
 
         qpSol.setZero(numDecisionVars_);        
         // If QP is successfully solved, get the primal solution and return
         if (rval == qpOASES::SUCCESSFUL_RETURN)
         {
             // Get the problem solution        
-            rval = qpProblem.getPrimalSolution(qpSol.data());
+            qpProblem.getPrimalSolution(qpSol.data());
+            qpStatus_.success = 1;
             printf("nWsr = %d \n", nWsr);
             return;
         }        
@@ -174,6 +180,7 @@ namespace quadloco
         {
             printf("Auxilary QP is solved instead \n");
             qpProblem.getPrimalSolution(qpSol.data());
+            qpStatus_.success = 2;
             return;
         }
 
