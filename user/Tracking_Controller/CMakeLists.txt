@@ -9,6 +9,6 @@ if(NOT TARGET vwbc)
     add_subdirectory(VWBC)
 endif()
 
-add_executable(mhpc_llctrl MHPC_LLController.cpp main.cpp )
-target_link_libraries(mhpc_llctrl robot biomimetics dynacore_param_handler vwbc)
+add_executable(tc_ctrl TrackingController.cpp main.cpp )
+target_link_libraries(tc_ctrl robot biomimetics dynacore_param_handler vwbc)
 
