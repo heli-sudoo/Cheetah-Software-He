@@ -3,6 +3,7 @@
 #include "utilities.h"
 #include <unistd.h>
 #include <chrono>
+#include <numeric>
 
 #define DRAW_PLAN
 #define PI 3.1415926
@@ -121,12 +122,13 @@ void Tracking_Controller::handleMPCCommand(const lcm::ReceiveBuffer *rbuf, const
         std::copy(msg->qJ[i].begin(), msg->qJ[i].end(), mpc_sol_temp.qJ.data());
         std::copy(msg->qJd[i].begin(), msg->qJd[i].end(), mpc_sol_temp.qJd.data());
         std::copy(msg->GRF[i].begin(), msg->GRF[i].end(), mpc_sol_temp.GRF.data());
+        std::copy(msg->contacts[i].begin(), msg->contacts[i].end(), mpc_sol_temp.contactStatus.data());
+        std::copy(msg->statusTimes[i].begin(), msg->statusTimes[i].end(), mpc_sol_temp.statusTimes.data());
+        std::copy(msg->feedback[i].begin(), msg->feedback[i].end(), mpc_sol_temp.K.data());
         std::copy(msg->Qu[i].begin(), msg->Qu[i].end(), mpc_sol_temp.Qu.data());
         std::copy(msg->Quu[i].begin(), msg->Quu[i].end(), mpc_sol_temp.Quu.data());
         std::copy(msg->Qux[i].begin(), msg->Qux[i].end(), mpc_sol_temp.Qux.data());
-        std::copy(msg->feedback[i].begin(), msg->feedback[i].end(), mpc_sol_temp.K.data());
-        std::copy(msg->contacts[i].begin(), msg->contacts[i].end(), mpc_sol_temp.contactStatus.data());
-        std::copy(msg->statusTimes[i].begin(), msg->statusTimes[i].end(), mpc_sol_temp.statusTimes.data());
+        
         mpc_sol_temp.time = msg->mpc_times[i];
         
         mpc_soluition_bag.push_back(mpc_sol_temp);
