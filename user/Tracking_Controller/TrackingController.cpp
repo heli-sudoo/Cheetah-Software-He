@@ -157,13 +157,7 @@ void Tracking_Controller::runController()
     switch (desired_command_mode)
     {
     case CONTROL_MODE::locomotion:
-    case RC_MODE::rc_locomotion:
-        // if (mpc_time >= 0.8)
-        // {
-        //     standup_ctrl();
-        //     break;
-        // }
-        
+    case RC_MODE::rc_locomotion:               
         locomotion_ctrl();
         in_standup = false;
         break;
@@ -252,10 +246,10 @@ void Tracking_Controller::locomotion_ctrl()
             vwbc_info_lcmt_data.cputime = qpstatus.cputime;
             vwbc_info_lcmt_data.time = mpc_time;
             utility_lcm.publish("vwbc_info", &vwbc_info_lcmt_data);
-        }
-        
-        // qJd_des = vMeas.tail<12>() + qddDes.tail<12>()* _controlParameters->controller_dt;        
-    }        
+        }    
+        qJd_des +=  qddDes.tail<12>()* _controlParameters->controller_dt;        
+        qJ_des += qJ_des * _controlParameters->controller_dt;      
+    }            
     
     for (int leg(0); leg < 4; leg++)
     {              
@@ -263,11 +257,19 @@ void Tracking_Controller::locomotion_ctrl()
         const auto& qDes_leg = qJ_des.segment<3>(3*LegIDMap[leg]);
         const auto& qdDes_leg = qJd_des.segment<3>(3*LegIDMap[leg]);        
 
-        _legController->commands[leg].tauFeedForward << tau_ff_leg[0], -tau_ff_leg.tail<2>();
-        _legController->commands[leg].qDes << qDes_leg[0], -qDes_leg.tail<2>();
-        _legController->commands[leg].qdDes << qdDes_leg[0], -qdDes_leg.tail<2>();
-        _legController->commands[leg].kpJoint = KpMat_joint;
-        _legController->commands[leg].kdJoint = KdMat_joint;
+        _legController->commands[leg].tauFeedForward << tau_ff_leg[0], tau_ff_leg.tail<2>();
+        _legController->commands[leg].qDes << qDes_leg[0], qDes_leg.tail<2>();
+        _legController->commands[leg].qdDes << qdDes_leg[0], qdDes_leg.tail<2>();
+
+        if (contactStatus[leg])
+        {
+            _legController->commands[leg].kpJoint = KpMat_joint * 0.25;
+            _legController->commands[leg].kdJoint = KdMat_joint * 0.25;
+        }else
+        {
+            _legController->commands[leg].kpJoint = KpMat_joint;
+            _legController->commands[leg].kdJoint = KdMat_joint;
+        }              
     }
     
     iter_loco++;
@@ -284,12 +286,6 @@ void Tracking_Controller::updateStateEstimate()
     const auto& legdatas = _legController->datas;
     qJ_se << legdatas[1].q, legdatas[0].q, legdatas[3].q, legdatas[2].q;
     qJd_se << legdatas[1].qd, legdatas[0].qd, legdatas[3].qd, legdatas[2].qd;
-
-    qJ_se(Eigen::seqN(1, 4, 3)) *= -1;
-    qJ_se(Eigen::seqN(2, 4, 3)) *= -1;
-
-    qJd_se(Eigen::seqN(1, 4, 3)) *= -1;
-    qJd_se(Eigen::seqN(2, 4, 3)) *= -1;
 
     x_se << se.position, eul_se, qJ_se, se.vWorld, eulrate_se, qJd_se;
 }
@@ -372,7 +368,7 @@ void Tracking_Controller::updateMPCCommand()
 {    
     bool find_a_solution = false;
  
-    static int most_recent_index = 0;
+    int most_recent_index = 0;
     int i(0);
     for (i = most_recent_index; i < mpc_soluition_bag.size() - 1; i++)
     {
@@ -402,12 +398,6 @@ void Tracking_Controller::updateMPCCommand()
         printf(RESET);
         mpc_solution = mpc_soluition_bag.back();
     }
-
-    std::cout << "mpc bag size = " << mpc_soluition_bag.size() << "\n";
-    std::cout << "current step = " << i << "\n";
-    std::cout << "start time = " << mpc_soluition_bag[i].time << "\n";
-    std::cout << "end time = " << mpc_soluition_bag[i+1].time << "\n";
-    std::cout << "mpctime = " << mpc_time << "\n";
 
     // Update the contact status and status durations (and flip the right and left legs order)
     contactStatus << mpc_solution.contactStatus[1], mpc_solution.contactStatus[0], mpc_solution.contactStatus[3], mpc_solution.contactStatus[2];

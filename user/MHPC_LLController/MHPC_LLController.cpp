@@ -158,12 +158,6 @@ void MHPC_LLController::runController()
     {
     case CONTROL_MODE::locomotion:
     case RC_MODE::rc_locomotion:
-        if (mpc_time >= 0.8)
-        {
-            standup_ctrl();
-            break;
-        }
-        
         locomotion_ctrl();
         in_standup = false;
         break;
@@ -256,7 +250,8 @@ void MHPC_LLController::locomotion_ctrl()
             utility_lcm.publish("vwbc_info", &vwbc_info_lcmt_data);
         }
         
-        // qJd_des = vMeas.tail<12>() + qddDes.tail<12>()* _controlParameters->controller_dt;        
+        qJd_des +=  qddDes.tail<12>()* _controlParameters->controller_dt;        
+        qJ_des += qJ_des * _controlParameters->controller_dt;        
     }        
     
     for (int leg(0); leg < 4; leg++)
@@ -265,11 +260,18 @@ void MHPC_LLController::locomotion_ctrl()
         const auto& qDes_leg = qJ_des.segment<3>(3*LegIDMap[leg]);
         const auto& qdDes_leg = qJd_des.segment<3>(3*LegIDMap[leg]);        
 
-        _legController->commands[leg].tauFeedForward << tau_ff_leg[0], -tau_ff_leg.tail<2>();
-        _legController->commands[leg].qDes << qDes_leg[0], -qDes_leg.tail<2>();
-        _legController->commands[leg].qdDes << qdDes_leg[0], -qdDes_leg.tail<2>();
+        _legController->commands[leg].tauFeedForward << tau_ff_leg[0], tau_ff_leg.tail<2>();
+        _legController->commands[leg].qDes << qDes_leg[0], qDes_leg.tail<2>();
+        _legController->commands[leg].qdDes << qdDes_leg[0], qdDes_leg.tail<2>();
+        if (contactStatus[leg])
+        {
+            _legController->commands[leg].kpJoint = KpMat_joint * 0.25;
+            _legController->commands[leg].kdJoint = KdMat_joint * 0.25;
+        }else
+        {
         _legController->commands[leg].kpJoint = KpMat_joint;
         _legController->commands[leg].kdJoint = KdMat_joint;
+        }                    
     }
     
     iter_loco++;
@@ -313,12 +315,6 @@ void MHPC_LLController::updateStateEstimate()
     const auto& legdatas = _legController->datas;
     qJ_se << legdatas[1].q, legdatas[0].q, legdatas[3].q, legdatas[2].q;
     qJd_se << legdatas[1].qd, legdatas[0].qd, legdatas[3].qd, legdatas[2].qd;
-
-    qJ_se(Eigen::seqN(1, 4, 3)) *= -1;
-    qJ_se(Eigen::seqN(2, 4, 3)) *= -1;
-
-    qJd_se(Eigen::seqN(1, 4, 3)) *= -1;
-    qJd_se(Eigen::seqN(2, 4, 3)) *= -1;
 
     x_se << se.position, eul_se, qJ_se, se.vWorld, eulrate_se, qJd_se;
 }
