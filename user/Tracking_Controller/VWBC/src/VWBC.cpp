@@ -125,8 +125,8 @@ namespace quadloco
         updateDesired(qDes, vDes, tauDes);
         
         // apply PD rule on qddDes        
-        qddDes_.tail(15)+= -P_gain_ * (qMeas - qDes).tail(15);
-        qddDes_ += -D_gain_ * (vMeas - vDes);
+        qddDes_.tail(16)+= -P_gain_ * (qMeas - qDes).tail(16);
+        qddDes_.tail(16)+= -D_gain_ * (vMeas - vDes).tail(16);
     }
 
     void VWBC::solveProblem()
@@ -406,8 +406,8 @@ namespace quadloco
         g.setZero();
 
         // Body acc tracking
-        H.topLeftCorner(6, 6) = weightBody_ * Mat6<scalar_t>::Identity();
-        g.head(6) = -weightBody_ * qddDes_.head(6);
+        H.block(2,2,4,4) = weightBody_ * Mat4<scalar_t>::Identity();
+        g.segment(2,4) = -weightBody_ * qddDes_.segment(2,4);
 
         // Joint acc tracking
         for (int l = 0; l < 4; l++)
