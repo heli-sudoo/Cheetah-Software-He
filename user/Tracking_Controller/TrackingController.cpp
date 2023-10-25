@@ -368,7 +368,7 @@ void Tracking_Controller::updateMPCCommand()
 {    
     bool find_a_solution = false;
  
-    int most_recent_index = 0;
+    static int most_recent_index = 0;
     int i(0);
     for (i = most_recent_index; i < mpc_soluition_bag.size() - 1; i++)
     {
