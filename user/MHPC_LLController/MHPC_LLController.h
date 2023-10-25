@@ -68,6 +68,7 @@ public:
     void standup_ctrl();
     void standup_ctrl_enter();
     void standup_ctrl_run();
+    void initialize_locomotion_ctrl();
     void locomotion_ctrl();
     void fixYawFlip();
     void fixRollFlip();
@@ -100,6 +101,8 @@ public:
     int iter_between_mpc_node;
     int nsteps_between_mpc_update;
     int nsteps_between_mpc_node;
+    bool is_loco_ctrl_initialized;    
+    bool is_first_mpc_request_sent;
     
     // Desried states, control etc
     // Leg order and Joint convention follow the Pinocchio's parsing of MC URDF file

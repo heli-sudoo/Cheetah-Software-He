@@ -80,6 +80,9 @@ void MHPC_LLController::initializeController()
     roll_flip_plus_times = 0;
     roll_flip_mins_times = 0;
     raw_roll_cur = _stateEstimate->rpy[0];
+
+    is_loco_ctrl_initialized = false;    
+    is_first_mpc_request_sent = false;
 }
 
 /*
@@ -133,6 +136,8 @@ void MHPC_LLController::handleMPCCommand(const lcm::ReceiveBuffer *rbuf, const s
         mpc_soluition_bag.push_back(mpc_sol_temp);
     }
     mpc_cmd_mutex.unlock();
+    is_loco_ctrl_initialized = true;
+
 }
 void MHPC_LLController::runController()
 {
@@ -158,8 +163,15 @@ void MHPC_LLController::runController()
     {
     case CONTROL_MODE::locomotion:
     case RC_MODE::rc_locomotion:
-        locomotion_ctrl();
-        in_standup = false;
+        if (!is_loco_ctrl_initialized)
+        {
+            initialize_locomotion_ctrl();
+            standup_ctrl();
+        }else
+        {
+            locomotion_ctrl();
+            in_standup = false;
+        }                 
         break;
     case CONTROL_MODE::standup: // standup controller
     case RC_MODE::rc_standup:
@@ -168,6 +180,13 @@ void MHPC_LLController::runController()
     default:
         break;
     }    
+}
+
+void MHPC_LLController::initialize_locomotion_ctrl()
+{
+    updateStateEstimate();
+    resolveMPCIfNeeded();
+    is_first_mpc_request_sent = true;
 }
 
 static int LegIDMap[] = {1,0,3,2};
@@ -282,28 +301,28 @@ void MHPC_LLController::locomotion_ctrl()
 void MHPC_LLController::resolveMPCIfNeeded()
 {
     /* If haven't reached to the replanning time, skip */
-    if (iter_between_mpc_update < nsteps_between_mpc_update)
+    
+    if (iter_between_mpc_update >= nsteps_between_mpc_update ||
+         !is_first_mpc_request_sent)
     {
-        return;
-    }
-    iter_between_mpc_update = 0;
-
+        const auto &se = _stateEstimator->getResult();
     
-    const auto &se = _stateEstimator->getResult();
-    
-    std::copy(se.position.begin(), se.position.end(), mpc_data.pos);
-    std::copy(eul_se.begin(), eul_se.end(), mpc_data.eul);
-    std::copy(se.vWorld.begin(), se.vWorld.end(), mpc_data.vWorld);
-    std::copy(eulrate_se.begin(), eulrate_se.end(), mpc_data.eulrate);    
+        std::copy(se.position.begin(), se.position.end(), mpc_data.pos);
+        std::copy(eul_se.begin(), eul_se.end(), mpc_data.eul);
+        std::copy(se.vWorld.begin(), se.vWorld.end(), mpc_data.vWorld);
+        std::copy(eulrate_se.begin(), eulrate_se.end(), mpc_data.eulrate);    
 
-    std::copy(qJ_se.begin(), qJ_se.end(), mpc_data.qJ);
-    std::copy(qJd_se.begin(), qJd_se.end(), mpc_data.qJd);
+        std::copy(qJ_se.begin(), qJ_se.end(), mpc_data.qJ);
+        std::copy(qJd_se.begin(), qJd_se.end(), mpc_data.qJd);
 
-    mpc_data.mpctime = mpc_time;
-    mpc_data_lcm.publish("MHPC_DATA", &mpc_data);
-    printf(YEL);
-    printf("sending a request for updating mpc\n");
-    printf(RESET);
+        mpc_data.mpctime = mpc_time;
+        mpc_data_lcm.publish("MHPC_DATA", &mpc_data);
+        printf(YEL);
+        printf("sending a request for updating mpc\n");
+        printf(RESET);
+
+        iter_between_mpc_update = 0;        
+    }            
 }
 
 void MHPC_LLController::updateStateEstimate()
