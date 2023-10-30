@@ -3,11 +3,11 @@ vwbc
     torqueLimits    17.0
     frictionCoeff   0.6
     BGalpha         5.0
-    weightBody      100.0
-    weightSwing     1.0
-    weightStance    1.0
+    weightBody      0.0
+    weightSwing     0.0
+    weightStance    0.0
     weightTorque    0.0
-    weightGRF       1.0
+    weightGRF       0.0
     P_gain          5.0
     D_gain          5.0
     warmstart       true
