@@ -13,7 +13,7 @@ struct MHPC_Command_lcmt {
     float Qu[N_mpcsteps][12];
     float Quu[N_mpcsteps][144];
     float Qux[N_mpcsteps][432];
-    int32_t contacts[N_mpcsteps][N_mpcsteps];
-    float statusTimes[N_mpcsteps][N_mpcsteps];          
+    int32_t contacts[N_mpcsteps][4];
+    float statusTimes[N_mpcsteps][4];          
     float solve_time;
 }
