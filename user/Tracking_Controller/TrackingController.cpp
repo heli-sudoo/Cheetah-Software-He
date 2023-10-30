@@ -257,14 +257,14 @@ void Tracking_Controller::locomotion_ctrl()
         const auto& qDes_leg = qJ_des.segment<3>(3*LegIDMap[leg]);
         const auto& qdDes_leg = qJd_des.segment<3>(3*LegIDMap[leg]);        
 
-        _legController->commands[leg].tauFeedForward << tau_ff_leg[0], tau_ff_leg.tail<2>();
-        _legController->commands[leg].qDes << qDes_leg[0], qDes_leg.tail<2>();
-        _legController->commands[leg].qdDes << qdDes_leg[0], qdDes_leg.tail<2>();
+        _legController->commands[leg].tauFeedForward << tau_ff_leg;
+        _legController->commands[leg].qDes << qDes_leg;
+        _legController->commands[leg].qdDes << qdDes_leg;
 
         if (contactStatus[leg])
         {
-            _legController->commands[leg].kpJoint = KpMat_joint * 0.25;
-            _legController->commands[leg].kdJoint = KdMat_joint * 0.25;
+            _legController->commands[leg].kpJoint = KpMat_joint * 0.2;
+            _legController->commands[leg].kdJoint = KdMat_joint * 0.2;
         }else
         {
             _legController->commands[leg].kpJoint = KpMat_joint;
@@ -274,7 +274,7 @@ void Tracking_Controller::locomotion_ctrl()
     
     iter_loco++;
     mpc_time = iter_loco * _controlParameters->controller_dt; // where we are since MPC starts
-    iter_between_mpc_update++;
+
 }
 
 void Tracking_Controller::updateStateEstimate()
