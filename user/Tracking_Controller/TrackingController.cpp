@@ -1,6 +1,7 @@
 #include "TrackingController.h"
 #include "cTypes.h"
 #include "utilities.h"
+#include "debug_tracking_lcmt.hpp"
 #include <unistd.h>
 #include <chrono>
 #include <numeric>
@@ -272,6 +273,8 @@ void Tracking_Controller::locomotion_ctrl()
         }              
     }
     
+    publishTrackingInfo();
+
     iter_loco++;
     mpc_time = iter_loco * _controlParameters->controller_dt; // where we are since MPC starts
 
@@ -413,6 +416,29 @@ void Tracking_Controller::updateMPCCommand()
     x_des << pos_des, eul_des, qJ_des, vWorld_des, eulrate_des, qJd_des;                     
 }
 
+void Tracking_Controller::publishTrackingInfo()
+{
+    debug_tracking_lcmt debug_data;
+    debug_data.time = mpc_time;
+    std::copy(mpc_solution.torque.begin(), mpc_solution.torque.end(), &debug_data.tau[0]);
+    std::copy(contactStatus.begin(), contactStatus.end(), &debug_data.contact[0]);
+    std::copy(mpc_solution.pos.begin(), mpc_solution.pos.end(), &debug_data.pos_des[0]);
+    std::copy(mpc_solution.eul.begin(), mpc_solution.eul.end(), &debug_data.eul_des[0]);
+    std::copy(mpc_solution.qJ.begin(), mpc_solution.qJ.end(), &debug_data.qJ_des[0]);
+    std::copy(mpc_solution.vWorld.begin(), mpc_solution.vWorld.end(), &debug_data.vWorld_des[0]);
+    std::copy(mpc_solution.eulrate.begin(), mpc_solution.eulrate.end(), &debug_data.eulrate_des[0]);
+    std::copy(mpc_solution.qJd.begin(), mpc_solution.qJd.end(), &debug_data.qJd_des[0]);
+
+    const auto &se = _stateEstimator->getResult();
+    std::copy(se.position.begin(), se.position.end(), &debug_data.pos[0]);
+    std::copy(eul_se.begin(), eul_se.end(), &debug_data.eul[0]);
+    std::copy(qJ_se.begin(), qJ_se.end(), &debug_data.qJ[0]);
+    std::copy(se.vWorld.begin(), se.vWorld.end(), &debug_data.vWorld[0]);
+    std::copy(eulrate_se.begin(), eulrate_se.end(), &debug_data.eulrate[0]);
+    std::copy(qJd_se.begin(), qJd_se.end(), &debug_data.qJd[0]);
+
+    utility_lcm.publish("DEBUG_TRACKING", &debug_data);
+}
 void Tracking_Controller::applyVelocityDisturbance()
 {
     float kick_start = static_cast<float> (userParameters.kick_start);

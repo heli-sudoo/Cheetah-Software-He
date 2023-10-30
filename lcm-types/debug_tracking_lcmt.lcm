@@ -1,0 +1,17 @@
+struct debug_tracking_lcmt {
+    float time;   
+    int32_t contact[4];     
+    float tau[12];
+    float eul_des[3];
+    float pos_des[3];
+    float qJ_des[12];
+    float vWorld_des[3];
+    float eulrate_des[3];        
+    float qJd_des[12];
+    float eul[3];
+    float pos[3];
+    float qJ[12];
+    float vWorld[3];
+    float eulrate[3];        
+    float qJd[12];
+}

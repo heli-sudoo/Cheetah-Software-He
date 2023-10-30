@@ -41,7 +41,7 @@ inline void interpolateMPCSolution(const MPCSolution& s0, const MPCSolution& s1,
     float dur = s1.time - s0.time;
     st.time = s0.time + t_rel;
 
-    linearly_interpolate_matrices(s0.torque, s1.torque, dur, t_rel, st.torque);
+    // linearly_interpolate_matrices(s0.torque, s1.torque, dur, t_rel, st.torque);
     linearly_interpolate_matrices(s0.pos, s1.pos, dur, t_rel, st.pos);
     linearly_interpolate_matrices(s0.eul, s1.eul, dur, t_rel, st.eul);
     linearly_interpolate_matrices(s0.vWorld, s1.vWorld, dur, t_rel, st.vWorld);
@@ -77,6 +77,8 @@ public:
                           const MHPC_Command_lcmt *msg);
     void handleMPCLCMthread();    
 
+    void publishTrackingInfo();
+    
     void applyVelocityDisturbance();
 
     void drawDisturbanceArrow(const Vec3<float>& kick_linear_vel);
