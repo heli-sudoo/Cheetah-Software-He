@@ -432,7 +432,7 @@ void MHPC_LLController::updateMPCCommand()
             float t_rel = mpc_time - start_time;
             
             mpc_solution = mpc_sol_curr;
-            // interpolateMPCSolution(mpc_sol_curr, mpc_sol_next, t_rel, mpc_solution);   
+            interpolateMPCSolution(mpc_sol_curr, mpc_sol_next, t_rel, mpc_solution);   
             find_a_solution = true;                                    
             break;
         }

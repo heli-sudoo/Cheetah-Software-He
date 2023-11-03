@@ -2,7 +2,8 @@ __collection-name__: user-parameters
 
 Kp_jointPD:       [100, 50, 50]
 Kd_jointPD:       [2, 2, 2]
-angles_jointPD:   [0, -0.7874, 1.7537]
+# angles_jointPD:   [0, -0.7874, 1.7537]
+angles_jointPD:   [0, -1.1, 2.2]
 draw_plan:        0
 
 Kp_joint:         [3, 3, 3]
