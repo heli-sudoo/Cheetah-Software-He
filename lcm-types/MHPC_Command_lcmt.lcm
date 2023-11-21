@@ -16,4 +16,5 @@ struct MHPC_Command_lcmt {
     int32_t contacts[N_mpcsteps][4];
     float statusTimes[N_mpcsteps][4];          
     float solve_time;
+    int32_t iters;
 }
