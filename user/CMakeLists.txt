@@ -3,5 +3,6 @@
 #add_subdirectory(MIT_Controller)
 #add_subdirectory(MiniCheetahSpi_Controller)
 # add_subdirectory(Imitation_Controller)
+add_subdirectory(VWBC)
 add_subdirectory(MHPC_LLController)
 add_subdirectory(Tracking_Controller)
