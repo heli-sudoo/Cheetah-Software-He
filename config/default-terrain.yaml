@@ -31,15 +31,15 @@ ground-plane:
     heightmap_file_name: "../algorithms/optimization/saved_optimization_data/2019-03-05-00_00_03_2/HeightMap.txt"
 
 #box-1:
-    type: "box"
-    mu: 0.7
-    restitution: 0
-    depth: 2.0
-    width: 1.5
-    height: .3
-    position:  [1.5, 0, 0.23]
-    orientation: [0,.0,0]  # roll pitch yaw
-    transparent: 1
+    # type: "box"
+    # mu: 0.7
+    # restitution: 0
+    # depth: 2.0
+    # width: 1.5
+    # height: .3
+    # position:  [1.5, 0, 0.23]
+    # orientation: [0,.0,0]  # roll pitch yaw
+    # transparent: 1
 
 #box-2:
     #type: "box"
@@ -52,7 +52,17 @@ ground-plane:
     #orientation: [0,.0,0]  # roll pitch yaw
     #transparent: 1
 
-    
+long-beam:
+    type: "box"
+    mu: 0.7
+    restitution: 0
+    depth: 5.0
+    width: 0.02
+    height: 0.02
+    position:  [0.0, -0.33, 0.35]
+    orientation: [0,.0,0]  # roll pitch yaw
+    transparent: 1
+
 #stairs-1:
     type: "stairs"
     steps: 5
