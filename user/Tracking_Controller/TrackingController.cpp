@@ -228,8 +228,10 @@ void Tracking_Controller::locomotion_ctrl()
 
         // update the VWBC problem
         wbc_.updateProblem(qMeas.cast<double>(), vMeas.cast<double>(), 
-                           qDes.cast<double>(), vDes.cast<double>(), tau_ff.cast<double>(),           
+                           qDes.cast<double>(), vDes.cast<double>(), qdd_des_.cast<double>(),
+                           tau_ff.cast<double>(),  mpc_solution.GRF.cast<double>(),         
                            Qu_mpc.cast<double>(), Quu_mpc.cast<double>());
+
 
         // solve the VWBC problem
         wbc_.solveProblem();
@@ -379,19 +381,23 @@ void Tracking_Controller::updateMPCCommand()
         float end_time = mpc_soluition_bag[i+1].time;
         float dt_mpc = end_time - start_time;
 
+        const auto& mpc_sol_curr = mpc_soluition_bag[i];
+        const auto& mpc_sol_next = mpc_soluition_bag[i+1];
+
         if (approxGeq_number((float) mpc_time,start_time) &&
             mpc_time < end_time)
-        {
-            const auto& mpc_sol_curr = mpc_soluition_bag[i];
-            const auto& mpc_sol_next = mpc_soluition_bag[i+1];
-            float t_rel = mpc_time - start_time;
-            
+        {            
+            float t_rel = mpc_time - start_time;            
             mpc_solution = mpc_sol_curr;
             interpolateMPCSolution(mpc_sol_curr, mpc_sol_next, t_rel, mpc_solution);   
             find_a_solution = true;             
             most_recent_index = i;                       
             break;
         }
+
+        qdd_des_.head<3>() = (mpc_sol_next.vWorld - mpc_sol_curr.vWorld)/dt_mpc;
+        qdd_des_.segment<3>(3) = (mpc_sol_next.eulrate - mpc_sol_curr.eulrate)/dt_mpc;
+        qdd_des_.tail<12>() = (mpc_sol_next.qJd - mpc_sol_curr.qJd)/dt_mpc;
     }   
     
     if (!find_a_solution)

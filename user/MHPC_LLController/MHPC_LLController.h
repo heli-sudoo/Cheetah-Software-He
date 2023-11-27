@@ -47,10 +47,7 @@ inline void interpolateMPCSolution(const MPCSolution& s0, const MPCSolution& s1,
     linearly_interpolate_matrices(s0.vWorld, s1.vWorld, dur, t_rel, st.vWorld);
     linearly_interpolate_matrices(s0.eulrate, s1.eulrate, dur, t_rel, st.eulrate);
     linearly_interpolate_matrices(s0.qJ, s1.qJ, dur, t_rel, st.qJ);
-    linearly_interpolate_matrices(s0.qJd, s1.qJd, dur, t_rel, st.qJd);
-    // linearly_interpolate_matrices(s0.Qu, s1.Qu, dur, t_rel, st.Qu);
-    // linearly_interpolate_matrices(s0.Quu, s1.Quu, dur, t_rel, st.Quu);
-    // linearly_interpolate_matrices(s0.Qux, s1.Qux, dur, t_rel, st.Qux);
+    linearly_interpolate_matrices(s0.qJd, s1.qJd, dur, t_rel, st.qJd);    
 }
 
 class MHPC_LLController : public RobotController
@@ -109,9 +106,7 @@ public:
     // i.e., [FR, FL, HR, HL], hip and knee have reversed rotations compared to Cheetah Software    
     Vec12<float> qJ_des;
     Vec12<float> qJd_des;   
-    Vec12<float> qJdd_des;
-    Vec3<float> aWorld_des;
-    Vec3<float> euldd_des;
+    Vec18<float> qdd_des_;
     Eigen::Vector<float, 36> x_des;
 
     // Q matrices and feedback gain

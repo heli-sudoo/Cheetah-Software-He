@@ -1,10 +1,11 @@
 
-#ifndef VALUEFUNCTION_WBC_H
-#define VALUEFUNCTION_WBC_H
+#ifndef VALUEFUNCTION_WBC2_H
+#define VALUEFUNCTION_WBC2_H
 
 #include <memory>
 #include <qpOASES.hpp>
 
+#ifdef USE_PINOCCHIO
 #include <pinocchio/fwd.hpp>
 #include <pinocchio/algorithm/rnea.hpp>
 #include <pinocchio/algorithm/jacobian.hpp>
@@ -13,6 +14,9 @@
 #include <pinocchio/algorithm/aba.hpp>
 #include <pinocchio/algorithm/crba.hpp>
 #include <pinocchio/algorithm/contact-dynamics.hpp>
+#include "PinocchioInterface.h"
+
+#endif
 
 #include "Task.h"
 
@@ -25,12 +29,14 @@ namespace quadloco
         int success = 0;    // 0 : fase; 1: success; 2; auxilary
         float cputime = 0.0;
     };
-    
+
+    const int nq = 18;    
+    const int nv = 18;
+    const int nu = 12;
+
     class VWBC
     {
     public:        
-        typedef pinocchio::ModelTpl<scalar_t> PinModelType;
-        typedef pinocchio::DataTpl<scalar_t> PinDataType;
         typedef DVec<qpOASES::real_t> qpVec;
         typedef DMat<qpOASES::real_t> qpMat;
 
@@ -40,10 +46,9 @@ namespace quadloco
         virtual void updateContact(const int contactStatus[4]);
         void updateProblem(const Vec18<scalar_t>& qMeas, const Vec18<scalar_t>& vMeas,                     
                     const Vec18<scalar_t>& qDes, const Vec18<scalar_t>& vDes, 
-                    const Vec12<scalar_t>& tauDes,                    
-                    const Vec12<scalar_t> &Qu, const Mat12<scalar_t>& Quu);        
-        void updateDesired(const Vec18<scalar_t>& qDes, const Vec18<scalar_t>& vDes, 
-                    const Vec12<scalar_t>& tauDes);
+                    const Vec18<scalar_t>& qddDes,                    
+                    const Vec12<scalar_t>& tauDes, const Vec12<scalar_t> GRF_des,
+                    const Vec12<scalar_t> &Qu, const Mat12<scalar_t>& Quu);               
         void solveProblem();                 
 
         template <typename T1, typename T2>
@@ -51,7 +56,7 @@ namespace quadloco
         {            
             for (size_t i = 0; i < 12; i++)
             {
-                tau_out[i] = qpSol(model.nv + i);
+                tau_out[i] = qpSol(nv + i);
             }
             for (size_t i = 0; i < qdd_out.size(); i++)
             {
@@ -81,11 +86,7 @@ namespace quadloco
         void checkFeasibility(); // helper function to debug      
         void loadParameters();  
 
-    protected:
-        PinModelType model;
-        std::shared_ptr<PinDataType> meas_data_ptr;
-        std::shared_ptr<PinDataType> des_data_ptr;
-
+    protected:                
         vector_t qMeas_, vMeas_;
         vector_t qddDes_, tauDes_, GRFdes_;
         vector_t Qu_;

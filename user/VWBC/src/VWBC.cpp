@@ -1,9 +1,11 @@
 #include "VWBC.h"
-#include "PinocchioInterface.h"
-
-#include <eigen3/Eigen/Cholesky> // Cholesky decomposition for positive definitness analysis
 #include <boost/property_tree/ptree.hpp>
 #include <boost/property_tree/info_parser.hpp>
+#include <eigen3/Eigen/Cholesky> // Cholesky decomposition for positive definitness analysis
+#include <iostream>
+#include "casadi_interface.h"
+#include "HandC.h"
+#include "MC_kinematics_casadi.h"
 
 template <typename T>
 using Chol = Eigen::LDLT<DMat<T>>;
@@ -13,22 +15,16 @@ namespace quadloco
 
     VWBC::VWBC() : numActJoints_(12),
                    numContacts_(0)
-    {
-        const std::string urdf_filename = "../urdf/mini_cheetah_simple_correctedInertia.urdf";
-        buildPinModelFromURDF(urdf_filename, model);
-
-        meas_data_ptr = std::make_shared<pinocchio::Data>(model);
-        des_data_ptr = std::make_shared<pinocchio::Data>(model);
-
-        J6D_.setZero(6, model.nv);
-        qddDes_.setZero(model.nv);
+    {      
+        J6D_.setZero(6, nv);
+        qddDes_.setZero(nv);
         tauDes_.setZero(numActJoints_);
         Qu_.setZero(numActJoints_);
         Quu_.setZero(numActJoints_, numActJoints_);
-        selectionMat_.setZero(model.nv, numActJoints_);
-        selectionMat_.diagonal(-(model.nv - numActJoints_)).setOnes();
-        qMeas_.setZero(model.nv);
-        vMeas_.setZero(model.nv);
+        selectionMat_.setZero(nv, numActJoints_);
+        selectionMat_.diagonal(-(nv - numActJoints_)).setOnes();
+        qMeas_.setZero(nv);
+        vMeas_.setZero(nv);
 
         loadParameters();
     }
@@ -38,19 +34,21 @@ namespace quadloco
         static int footFrameIds[4] = {11, 19, 27, 35};
 
         contactFrameIds_.clear();
+        contactIds_.clear();
         for (int l = 0; l < 4; l++)
         {
             contactStatus_[l] = contactStatus[l];
             if (contactStatus[l] > 0)
             {
                 contactFrameIds_.push_back(footFrameIds[l]);
+                contactIds_.push_back(l);
             }
         }
 
         numContacts_ = contactFrameIds_.size();
 
         // update the size of contact Jaocbians
-        JEE_.setZero(3 * numContacts_, model.nv);
+        JEE_.setZero(3 * numContacts_, nv);
 
         // update the size of contact foot velocity
         EEvel_.setZero(3 * numContacts_);
@@ -62,7 +60,7 @@ namespace quadloco
         GRFdes_.setZero(3 * numContacts_);
 
         // update the number of decision variables
-        numDecisionVars_ = model.nv + numActJoints_ + 3 * numContacts_; // #generalized acc + #actuated joint torques + #GRF(each is 3D vec)
+        numDecisionVars_ = nv + numActJoints_ + 3 * numContacts_; // #generalized acc + #actuated joint torques + #GRF(each is 3D vec)
     }
 
     /*
@@ -80,49 +78,58 @@ namespace quadloco
     */
     void VWBC::updateProblem(const Vec18<scalar_t> &qMeas, const Vec18<scalar_t> &vMeas,
                              const Vec18<scalar_t> &qDes, const Vec18<scalar_t> &vDes,
-                             const Vec12<scalar_t> &tauDes,
+                             const Vec18<scalar_t>& qddDes,
+                             const Vec12<scalar_t> &tauDes, const Vec12<scalar_t> GRFDes,
                              const Vec12<scalar_t> &Qu, const Mat12<scalar_t> &Quu)
     {
         tauDes_ = tauDes;
+        qddDes_ = qddDes;
+
         Qu_ = Qu;
         Quu_ = Quu;
 
         qMeas_ = qMeas;
         vMeas_ = vMeas;
 
-        // Compute inertia matrix using CRBA
-        pinocchio::crba(model, *meas_data_ptr, qMeas);
+        // update kinematics
+        vector_t EEdrift[4];
+        matrix_t JEE[4];
+        for (size_t i = 0; i < 4; i++)
+        {
+            EEdrift[i].setZero(3);
+            JEE[i].setZero(3,18);
+        }
+        vector_t qddZero(18);
+        qddZero.setZero();
+        std::vector<const scalar_t *> arg_drift = {qMeas_.data(), vMeas_.data(), qddZero.data()};
+        std::vector<scalar_t *> res_drift = {EEdrift[0].data(),
+                                             EEdrift[1].data(),
+                                             EEdrift[2].data(),
+                                             EEdrift[3].data()};
 
-        // Compute coriolis, centrifugal, gravity term
-        pinocchio::nonLinearEffects(model, *meas_data_ptr, qMeas, vMeas);
-
-        // Compute the Jacobians
-        pinocchio::forwardKinematics(model, *meas_data_ptr, qMeas, vMeas, vector_t(model.nv).setZero());
-        pinocchio::computeJointJacobians(model, *meas_data_ptr, qMeas);
+        // compute foot accleration
+        casadi_interface(arg_drift, res_drift, EEdrift[0].size(), 
+                         footAcc,
+                         footAcc_sparsity_out,
+                         footAcc_work);
+        
+        std::vector<const scalar_t *> arg_J = {qMeas_.data()};
+        std::vector<scalar_t *> res_J = {JEE[0].data(),
+                                         JEE[1].data(),
+                                         JEE[2].data(),
+                                         JEE[3].data()};
+         // compute foot Jacobian
+         casadi_interface(arg_J, res_J, JEE[0].size(), 
+                         footJacobian,
+                         footJacobian_sparsity_out,
+                         footJacobian_work);      
 
         for (size_t i = 0; i < numContacts_; i++)
-        {
-            J6D_.setZero();
-            pinocchio::updateFramePlacement(model, *meas_data_ptr, contactFrameIds_[i]);
-            pinocchio::getFrameJacobian(model, *meas_data_ptr, contactFrameIds_[i], pinocchio::LOCAL_WORLD_ALIGNED, J6D_);
-            JEE_.middleRows(3 * i, 3) = J6D_.topRows(3);
-
-            // Get spatial velocity of end effector
-            EEvel6D_ = pinocchio::getFrameVelocity(model, *meas_data_ptr, contactFrameIds_[i], pinocchio::LOCAL_WORLD_ALIGNED).toVector();
-            EEvel_.segment(3 * i, 3) = EEvel6D_.head(3);
-
-            // Get spatial acceleration of end effector
-            EEacc6D_ = pinocchio::getFrameAcceleration(model, *meas_data_ptr, contactFrameIds_[i], pinocchio::LOCAL_WORLD_ALIGNED).toVector();
-            EEdrift_.segment(3 * i, 3) = EEacc6D_.head(3);
-
-            // Convert linear component of spatial accleration to conventional accleration
-            const Vec3<scalar_t> &vv = EEvel6D_.head(3);
-            const Vec3<scalar_t> &vw = EEvel6D_.tail(3);
-            EEdrift_.segment(3 * i, 3) += vw.cross(vv);
+        {            
+            EEdrift_.segment(3 * i, 3) = EEdrift[contactIds_[i]];
+            JEE_.middleRows(3 * i, 3) = JEE[contactIds_[i]];
+            GRFdes_.segment(3*i, 3) = GRFDes.segment(3*contactIds_[i], 3);
         }
-        EEdrift_ += BGalpha_ * EEvel_;
-
-        updateDesired(qDes, vDes, tauDes);
         
         // apply PD rule on qddDes        
         qddDes_.tail(16)+= -P_gain_ * (qMeas - qDes).tail(16);
@@ -189,51 +196,6 @@ namespace quadloco
         qpSol << qddDes_, tauDes_, GRFdes_;        
     }
 
-    void VWBC::updateDesired(const Vec18<scalar_t> &qDes, const Vec18<scalar_t> &vDes,
-                             const Vec12<scalar_t> &tauDes)
-    {
-        pinocchio::forwardKinematics(model, *des_data_ptr, qDes, vDes, vector_t(model.nv).setZero());
-        pinocchio::computeJointJacobians(model, *des_data_ptr, qDes);
-        
-        matrix_t JEE_des(3*numContacts_, model.nv);
-        vector_t EEvel_des(3*numContacts_);
-        vector_t EEdrift_des(3*numContacts_);
-
-        for (size_t i = 0; i < numContacts_; i++)
-        {
-            J6D_.setZero();
-            pinocchio::updateFramePlacement(model, *des_data_ptr, contactFrameIds_[i]);
-            pinocchio::getFrameJacobian(model, *des_data_ptr, contactFrameIds_[i], pinocchio::LOCAL_WORLD_ALIGNED, J6D_);
-            JEE_des.middleRows(3 * i, 3) = J6D_.topRows(3);
-
-            // Get spatial velocity of end effector
-            EEvel6D_ = pinocchio::getFrameVelocity(model, *des_data_ptr, contactFrameIds_[i], pinocchio::LOCAL_WORLD_ALIGNED).toVector();
-            EEvel_des.segment(3 * i, 3) = EEvel6D_.head(3);
-
-            // Get spatial acceleration of end effector
-            EEacc6D_ = pinocchio::getFrameAcceleration(model, *des_data_ptr, contactFrameIds_[i], pinocchio::LOCAL_WORLD_ALIGNED).toVector();
-            EEdrift_des.segment(3 * i, 3) = EEacc6D_.head(3);
-
-            // Convert linear component of spatial accleration to conventional accleration
-            const Vec3<scalar_t> &vv = EEvel6D_.head(3);
-            const Vec3<scalar_t> &vw = EEvel6D_.tail(3);
-            EEdrift_des.segment(3 * i, 3) += vw.cross(vv);
-        }
-        
-        qddDes_ = pinocchio::forwardDynamics(model, *des_data_ptr, qDes, vDes, selectionMat_*tauDes_, JEE_des, EEdrift_des, 1e-12);
-        GRFdes_ = des_data_ptr->lambda_c;   
-
-        // Print GRFs with negative normal forces
-        // Only used for debugging purpose
-        for (size_t i = 0; i < numContacts_; i++)
-        {
-            if (GRFdes_[3*i+2] < 0)
-            {
-                std::cout << "GRFdes = " << GRFdes_.segment(3*i, 3).transpose() << "\n";
-            }
-            
-        }                            
-    }
     
     /*
         @brief: Formulates all equality and inequality constraints
@@ -270,14 +232,23 @@ namespace quadloco
                 Decesion variable : [qdd, tau, GRF]
     */
     Constraint VWBC::formulateDynamicsConstraints()
-    {
-        meas_data_ptr->M.transpose().triangularView<Eigen::Upper>() = meas_data_ptr->M.triangularView<Eigen::Upper>();
+    {        
+        matrix_t M(nv, nv);
+        vector_t nle(nv);
 
-        matrix_t A(model.nv, numDecisionVars_);
-        vector_t lb_A(model.nv),ub_A(model.nv);
+        matrix_t A(nv, numDecisionVars_);
+        vector_t lb_A(nv),ub_A(nv);
 
-        A << meas_data_ptr->M, -selectionMat_, -JEE_.transpose();
-        lb_A << -meas_data_ptr->nle;
+        std::vector<const scalar_t *> arg_pos = {qMeas_.data(), vMeas_.data()};
+        std::vector<scalar_t *> res_pos = {M.data(), nle.data()};
+
+        // compute foot position
+        casadi_interface(arg_pos, res_pos, M.size(), massAndNle,
+                         massAndNle_sparsity_out,
+                         massAndNle_work);
+
+        A << M, -selectionMat_, -JEE_.transpose();        
+        lb_A << nle;
         ub_A = lb_A;
         return {A, lb_A, ub_A};
     }
@@ -294,7 +265,7 @@ namespace quadloco
         vector_t ub_A(numActJoints_);
 
         A.setZero();
-        A.middleCols(model.nv, numActJoints_).setIdentity();
+        A.middleCols(nv, numActJoints_).setIdentity();
         lb_A.setConstant(-torqueLimits_);
         ub_A.setConstant(torqueLimits_);
 
@@ -312,7 +283,7 @@ namespace quadloco
         vector_t lb_A(3 * numContacts_),ub_A(3 * numContacts_);
 
         A.setZero();
-        A.leftCols(model.nv) = JEE_;
+        A.leftCols(nv) = JEE_;
 
         lb_A = -EEdrift_;
         ub_A = lb_A;
@@ -332,7 +303,7 @@ namespace quadloco
         vector_t ub_A(numContacts_);
 
         A.setZero();
-        int offset = model.nv + numActJoints_;
+        int offset = nv + numActJoints_;
         for (size_t i = 0; i < numContacts_; i++)
         {
             A(i, offset + 3 * i + 2) = 1;
@@ -360,7 +331,7 @@ namespace quadloco
         lb_A.setZero();
         ub_A.setConstant(qpOASES::INFTY);
 
-        int offset = model.nv + numActJoints_;
+        int offset = nv + numActJoints_;
         for (size_t i = 0; i < numContacts_; i++)
         {
             A.block(4 * i, offset + 3 * i, 4, 3)
@@ -386,10 +357,10 @@ namespace quadloco
         vector_t g(numDecisionVars_);
 
         H.setZero();
-        H.middleCols(model.nv, numActJoints_).middleRows(model.nv, numActJoints_) = Quu_;
+        H.middleCols(nv, numActJoints_).middleRows(nv, numActJoints_) = Quu_;
 
         g.setZero();
-        g.segment(model.nv, numActJoints_) = Qu_;
+        g.segment(nv, numActJoints_) = Qu_;
 
         return {H, g};
     }
@@ -438,11 +409,11 @@ namespace quadloco
         vector_t g(numDecisionVars_);
 
         H.setZero();
-        H.block(model.nv, model.nv, numActJoints_, numActJoints_).setIdentity();
-        H.block(model.nv, model.nv, numActJoints_, numActJoints_) *= weightTorque_;
+        H.block(nv, nv, numActJoints_, numActJoints_).setIdentity();
+        H.block(nv, nv, numActJoints_, numActJoints_) *= weightTorque_;
 
         g.setZero();
-        g.segment(model.nv, numActJoints_) = -weightTorque_ * tauDes_;
+        g.segment(nv, numActJoints_) = -weightTorque_ * tauDes_;
 
         return {H, g};
     }
@@ -456,7 +427,7 @@ namespace quadloco
         vector_t g(numDecisionVars_);
 
         H.setZero();
-        int offset = model.nv + numActJoints_;
+        int offset = nv + numActJoints_;
         H.block(offset, offset, 3 * numContacts_, 3 * numContacts_).setIdentity();
         H.block(offset, offset, 3 * numContacts_, 3 * numContacts_) *= weightGRF_;
 

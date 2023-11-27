@@ -104,9 +104,7 @@ public:
     // i.e., [FR, FL, HR, HL], hip and knee have reversed rotations compared to Cheetah Software    
     Vec12<float> qJ_des;
     Vec12<float> qJd_des;   
-    Vec12<float> qJdd_des;
-    Vec3<float> aWorld_des;
-    Vec3<float> euldd_des;
+    Vec18<float> qdd_des_;
     Eigen::Vector<float, 36> x_des;
 
     // Q matrices and feedback gain

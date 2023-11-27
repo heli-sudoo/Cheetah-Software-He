@@ -2,7 +2,7 @@ vwbc
 {
     torqueLimits    17.0
     frictionCoeff   0.6
-    BGalpha         5.0
+    BGalpha         0.0
     weightBody      0.0
     weightSwing     0.0
     weightStance    0.0
