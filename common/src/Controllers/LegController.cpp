@@ -96,7 +96,7 @@ void LegController<T>::updateData(const SpiData* spiData) {
     
     if (leg==1)
     {
-      datas[leg].q(2) = spiData->q_knee[leg] - 0.222;      
+      datas[leg].q(2) = spiData->q_knee[leg] - 0.037921;      
     }
     if (leg==2)
     {
@@ -189,14 +189,14 @@ void LegController<T>::updateCommand(SpiCommand* spiCommand) {
     spiCommand->q_des_knee[leg] = commands[leg].qDes(2);
 
   #ifdef MINI_CHEETAH_BUILD
-    if (leg==0)
+   if (leg==0)
     {
       spiCommand->q_des_knee[leg] = commands[leg].qDes(2)-0.1887;
     }
 
     if (leg==1)
     {
-      spiCommand->q_des_knee[leg] = commands[leg].qDes(2)+0.222;
+      spiCommand->q_des_knee[leg] = commands[leg].qDes(2)+0.037921;
     }
     if (leg==2)
     {
