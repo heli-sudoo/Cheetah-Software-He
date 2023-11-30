@@ -9,7 +9,7 @@ draw_plan:        0
 Kp_joint:         [3, 3, 3]
 Kd_joint:         [1, 0.5, 0.5]
 
-WBC:              1
+WBC:              2
 
 kick_start:        0.0
 kick_dur:          0.0
