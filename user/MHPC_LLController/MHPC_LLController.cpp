@@ -255,12 +255,22 @@ void MHPC_LLController::locomotion_ctrl()
         // solve the VWBC problem
         wbc_.solveProblem();
 
-        // get a solution
-        wbc_.getSolution(tau_ff, qddDes);
-
         // get solution status
         quadloco::QPStatus qpstatus;
         qpstatus = wbc_.getQPStatus();
+
+        if (qpstatus.success > 0)
+        {
+            // get a solution
+            wbc_.getSolution(tau_ff, qddDes);
+            qJd_des +=  qddDes.tail<12>()* _controlParameters->controller_dt;        
+            qJ_des += qJ_des * _controlParameters->controller_dt;
+        }else
+        {
+            const auto& K_mpc = mpc_solution.K;
+            tau_ff += K_mpc.rightCols<34>() * (x_se - x_des).tail<34>();   
+        }        
+        
         if (userParameters.vwbc_info_lcm > 0.1)
         {
             vwbc_info_lcmt_data.success = qpstatus.success;
@@ -270,8 +280,7 @@ void MHPC_LLController::locomotion_ctrl()
             utility_lcm.publish("vwbc_info", &vwbc_info_lcmt_data);
         }
         
-        qJd_des +=  qddDes.tail<12>()* _controlParameters->controller_dt;        
-        qJ_des += qJ_des * _controlParameters->controller_dt;        
+                
     }        
     
     for (int leg(0); leg < 4; leg++)
