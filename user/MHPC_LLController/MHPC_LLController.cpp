@@ -71,7 +71,7 @@ void MHPC_LLController::initializeController()
     mpc_time = 0;
     iter_loco = 0;
     iter_between_mpc_update = 0;
-    nsteps_between_mpc_update = 10;
+    nsteps_between_mpc_update = 15;
 
     yaw_flip_plus_times = 0;
     yaw_flip_mins_times = 0;

@@ -52,7 +52,7 @@ ground-plane:
     #orientation: [0,.0,0]  # roll pitch yaw
     #transparent: 1
 
-long-beam:
+# long-beam:
     type: "box"
     mu: 0.7
     restitution: 0
