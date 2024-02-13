@@ -17,4 +17,7 @@ struct MHPC_Command_lcmt {
     float statusTimes[N_mpcsteps][4];          
     float solve_time;
     int32_t iters;
+    int32_t ls_iters;
+    int32_t reg_iters;
+    float rcost;
 }
