@@ -16,4 +16,9 @@ kick_dur:          0.0
 kick_linear:       [0.0, 0.0, 0.0]
 kick_angular:      [0.0, 0.0, 0.0]
 
+# kick_start:        2.7
+# kick_dur:          0.05
+# kick_linear:       [1.8, 0.0, 0.0]
+# kick_angular:      [0.0, 0.0, 0.0]
+
 vwbc_info_lcm:    0
