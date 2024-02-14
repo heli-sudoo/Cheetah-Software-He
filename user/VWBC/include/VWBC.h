@@ -30,9 +30,9 @@ namespace quadloco
         float cputime = 0.0;
     };
 
-    const int nq = 18;    
-    const int nv = 18;
-    const int nu = 12;
+    const int nq = 20;    
+    const int nv = 20;
+    const int nu = 14;
 
     class VWBC
     {
@@ -44,17 +44,17 @@ namespace quadloco
         VWBC();
 
         virtual void updateContact(const int contactStatus[4]);
-        void updateProblem(const Vec18<scalar_t>& qMeas, const Vec18<scalar_t>& vMeas,                     
-                    const Vec18<scalar_t>& qDes, const Vec18<scalar_t>& vDes, 
-                    const Vec18<scalar_t>& qddDes,                    
-                    const Vec12<scalar_t>& tauDes, const Vec12<scalar_t> GRF_des,
-                    const Vec12<scalar_t> &Qu, const Mat12<scalar_t>& Quu);               
+        void updateProblem(const Vec20<scalar_t>& qMeas, const Vec20<scalar_t>& vMeas,                     
+                    const Vec20<scalar_t>& qDes, const Vec20<scalar_t>& vDes, 
+                    const Vec20<scalar_t>& qddDes,                    
+                    const Vec14<scalar_t>& tauDes, const Vec12<scalar_t> GRF_des,
+                    const Vec14<scalar_t> &Qu, const Mat14<scalar_t>& Quu);               
         void solveProblem();                 
 
         template <typename T1, typename T2>
         void getSolution(Eigen::MatrixBase<T1>& tau_out, Eigen::MatrixBase<T2>& qdd_out)
         {            
-            for (size_t i = 0; i < 12; i++)
+            for (size_t i = 0; i < 14; i++)
             {
                 tau_out[i] = qpSol(nv + i);
             }

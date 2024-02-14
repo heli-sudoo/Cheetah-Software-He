@@ -28,6 +28,7 @@ Quadruped<T> buildMiniCheetah() {
   cheetah._abadGearRatio = 6;
   cheetah._hipGearRatio = 6;
   cheetah._kneeGearRatio = 9.33;
+  cheetah._flywheelRatio = 21; 
   cheetah._abadLinkLength = 0.062;
   cheetah._hipLinkLength = 0.209;
   //cheetah._kneeLinkLength = 0.175;
@@ -47,6 +48,15 @@ Quadruped<T> buildMiniCheetah() {
   //cheetah._jointDamping = .0;
   //cheetah._jointDryFriction = .0;
 
+  //flywheel 
+  cheetah._flywheelMass = 0.381; //1.69; 
+  cheetah._flywheelRyLocation = Vec3<T> (0.0,    0.0,  0.104 + cheetah._bodyHeight / 2.0 ) ;
+  cheetah._flywheelRxLocation = Vec3<T> (0.118,  0.0,  0.104 + cheetah._bodyHeight / 2.0); 
+
+  cheetah._flywheelRotorYLocation =Vec3<T> (0.0,    0.0,  0.104 + cheetah._bodyHeight / 2.0 );
+  cheetah._flywheelRotorXLocation = Vec3<T> (0.118, 0.0,  0.104  + cheetah._bodyHeight / 2.0); 
+
+
 
   // rotor inertia if the rotor is oriented so it spins around the z-axis
   Mat3<T> rotorRotationalInertiaZ;
@@ -55,10 +65,25 @@ Quadruped<T> buildMiniCheetah() {
 
   Mat3<T> RY = coordinateRotation<T>(CoordinateAxis::Y, M_PI / 2);
   Mat3<T> RX = coordinateRotation<T>(CoordinateAxis::X, M_PI / 2);
+  Mat3<T> RZ = coordinateRotation<T>(CoordinateAxis::Z, M_PI / 2);
+
   Mat3<T> rotorRotationalInertiaX =
       RY * rotorRotationalInertiaZ * RY.transpose();
   Mat3<T> rotorRotationalInertiaY =
       RX * rotorRotationalInertiaZ * RX.transpose();
+
+  //assumes rotor inertia about the z axis 
+  Mat3<T> flywheelRtrRotZInertia; 
+  flywheelRtrRotZInertia << 5,0,0,
+                           0,5,0,
+                           0,0,30;  
+  flywheelRtrRotZInertia = 1e-6 * flywheelRtrRotZInertia;
+  //align with proper axis
+  Mat3<T> flywheelRtrRotYInertia =  RX * flywheelRtrRotZInertia * RX.transpose();
+  Mat3<T> flywheelRtrRotXInertia =  RY * flywheelRtrRotZInertia * RY.transpose();
+
+
+
 
   // spatial inertias
   Mat3<T> abadRotationalInertia;
@@ -91,6 +116,39 @@ Quadruped<T> buildMiniCheetah() {
   SpatialInertia<T> bodyInertia(cheetah._bodyMass, bodyCOM,
                                 bodyRotationalInertia);
 
+
+  //assuming flywheel aligned with Z axis
+  Mat3<T> flywheelRotZInertia;
+  //Without weighed plates
+  flywheelRotZInertia << 1007, 38, 4,
+                        38, 875, 12,
+                        4, 12, 1619;
+   //With weighted steel plates                  
+//   flywheelRotZInertia << 4768, 40, -2,
+//                         40, 4635, 6,
+//                         -2, 6, 6734;
+  flywheelRotZInertia = flywheelRotZInertia * 1e-6;
+  
+  //Conversion to proper axis
+  Mat3<T> flywheelRotYInertia = RX * flywheelRotZInertia * RX.transpose(); 
+  Mat3<T> flywheelRotXInertia = RY * flywheelRotZInertia * RY.transpose(); 
+
+  
+  SpatialInertia<T> flywheelRyInertia(cheetah._flywheelMass,cheetah._flywheelRyLocation,flywheelRotYInertia);
+  SpatialInertia<T> flywheelRxInertia(cheetah._flywheelMass,cheetah._flywheelRxLocation,flywheelRotXInertia);
+  
+  //flwheel rotor inertia 
+  // Vec3<T> flywheelCOM(0.1, -0.0, -0.1);
+  Vec3<T> flywheelCOM(-0.1, -0.0, -0.12);
+  // Vec3<T> flywheelCOM(-0.0, -0.0, -0.0);
+  SpatialInertia<T> flywheelRotorYInertia(0.05, flywheelCOM,flywheelRtrRotYInertia); //assumes motor and gearbox wears 500g
+
+  //flwheel rotor inertia 
+  Vec3<T> flywheelYCOM(-0.1, -0.12, -0.0);
+  SpatialInertia<T> flywheelRotorXInertia(0.05, flywheelYCOM,flywheelRtrRotXInertia ); //assumes motor and gearbox wears 500g
+
+
+
   cheetah._abadInertia = abadInertia;
   cheetah._hipInertia = hipInertia;
   cheetah._kneeInertia = kneeInertia;
@@ -98,6 +156,12 @@ Quadruped<T> buildMiniCheetah() {
   cheetah._hipRotorInertia = rotorInertiaY;
   cheetah._kneeRotorInertia = rotorInertiaY;
   cheetah._bodyInertia = bodyInertia;
+
+  cheetah._flywheelRxInertia = flywheelRxInertia;
+  cheetah._flywheelRyInertia = flywheelRyInertia;
+
+  cheetah._flywheelRotorYInertia= flywheelRotorYInertia;
+  cheetah._flywheelRotorXInertia= flywheelRotorXInertia;
 
   // locations
   cheetah._abadRotorLocation = Vec3<T>(0.125, 0.049, 0);

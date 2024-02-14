@@ -327,7 +327,7 @@ class DrawList {
   Vec3<double> _cameraOrigin;
 
   size_t _cheetah3LoadIndex = 0, _miniCheetahLoadIndex = 0,
-         _sphereLoadIndex = 0, _cubeLoadIndex = 0;
+         _sphereLoadIndex = 0, _cubeLoadIndex = 0,  _flyWheelLoadIndex = 0;
 };
 
 #endif  // PROJECT_DRAWLIST_H

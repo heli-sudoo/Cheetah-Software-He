@@ -19,21 +19,21 @@ struct MPCSolution
     // Leg order and Joint convention follow the Pinocchio's parsing of MC URDF file
     // i.e., [FR, FL, HR, HL], hip and knee have reversed rotations compared to Cheetah Software
     float time;
-    Vec12<float> torque;
+    Vec14<float> torque;
     Vec3<float> pos;
     Vec3<float> eul;
     Vec3<float> vWorld;
     Vec3<float> eulrate;
-    Vec12<float> qJ;
-    Vec12<float> qJd;
+    Vec14<float> qJ;
+    Vec14<float> qJd;
     Vec12<float> GRF;
     Vec4<int> contactStatus;
     Vec4<float> statusTimes;
-    Eigen::Matrix<float, 12, 36> K;
+    Eigen::Matrix<float, 14, 40> K;
 
-    Vec12<float> Qu;
-    Mat12<float> Quu;
-    Eigen::Matrix<float, 12, 36> Qux;
+    Vec14<float> Qu;
+    Mat14<float> Quu;
+    Eigen::Matrix<float, 14, 40> Qux;
 };
 
 inline void interpolateMPCSolution(const MPCSolution& s0, const MPCSolution& s1, float t_rel, MPCSolution& st)
@@ -102,22 +102,22 @@ public:
     // Desried states, control etc
     // Leg order and Joint convention follow the Pinocchio's parsing of MC URDF file
     // i.e., [FR, FL, HR, HL], hip and knee have reversed rotations compared to Cheetah Software    
-    Vec12<float> qJ_des;
-    Vec12<float> qJd_des;   
-    Vec18<float> qdd_des_;
-    Eigen::Vector<float, 36> x_des;
+    Vec14<float> qJ_des;
+    Vec14<float> qJd_des;   
+    Vec20<float> qdd_des_;
+    Eigen::Vector<float, 40> x_des;
 
     // Q matrices and feedback gain
-    Vec12<float> Qu_mpc;
-    Mat12<float> Quu_mpc;    
+    Vec14<float> Qu_mpc;
+    Mat14<float> Quu_mpc;    
 
     // State estimates
     // Have the same convention as the desired states
     Vec3<float> eul_se;
     Vec3<float> eulrate_se;
-    Vec12<float> qJ_se;
-    Vec12<float> qJd_se;
-    Eigen::Vector<float, 36> x_se;
+    Vec14<float> qJ_se;
+    Vec14<float> qJd_se;
+    Eigen::Vector<float, 40> x_se;
     
     // Swing Control
     bool firstStance[4];

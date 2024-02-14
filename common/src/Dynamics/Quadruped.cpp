@@ -33,7 +33,8 @@ bool Quadruped<T>::buildModel(FloatingBaseModel<T>& model) {
   T sideSign = -1;
 
   Mat3<T> I3 = Mat3<T>::Identity();
-
+ 
+  
   // loop over 4 legs
   for (int legID = 0; legID < 4; legID++) {
     // Ab/Ad joint
@@ -103,6 +104,30 @@ bool Quadruped<T>::buildModel(FloatingBaseModel<T>& model) {
 
     sideSign *= -1;
   }
+
+
+  // bodyID++;
+  // First Flywheel Joint about Y Axis
+  Mat6<T> xtreeflywheelY      = createSXform(I3, _flywheelRyLocation);
+  Mat6<T> xtreeflywheelRotorY = createSXform(I3, _flywheelRotorYLocation);
+  model.addBody(_flywheelRyInertia,
+              _flywheelRotorYInertia,
+              _flywheelRatio, baseID  , JointType::Revolute,
+              CoordinateAxis::Y, xtreeflywheelY, xtreeflywheelRotorY);
+  // model.addGroundContactPoint(baseID, Vec3<T>(0, 0, -_hipLinkLength));
+
+
+
+  // bodyID++;
+  Mat6<T> xtreeflywheelX      = createSXform(I3, _flywheelRxLocation);
+  Mat6<T> xtreeflywheelRotorX = createSXform(I3, _flywheelRotorXLocation);
+  model.addBody(_flywheelRxInertia,
+              _flywheelRotorXInertia,
+              _flywheelRatio, baseID , JointType::Revolute,
+              CoordinateAxis::X, xtreeflywheelX, xtreeflywheelRotorX);
+  // model.addGroundContactPoint(baseID, Vec3<T>(0, 0, -_hipLinkLength));
+
+
 
   Vec3<T> g(0, 0, -9.81);
   model.setGravity(g);
@@ -238,6 +263,8 @@ std::vector<ActuatorModel<T>> Quadruped<T>::buildActuatorModels() {
                       _jointDamping, _jointDryFriction, _motorTauMax);
   models.emplace_back(_kneeGearRatio, _motorKT, _motorR, _batteryV,
                       _jointDamping, _jointDryFriction, _motorTauMax);
+  // models.emplace_back(_flywheelRatio, _motorKT, _motorR, _batteryV,
+  //                     _jointDamping, _jointDryFriction, _motorTauMax);                      
   return models;
 }
 

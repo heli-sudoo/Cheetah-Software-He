@@ -19,7 +19,7 @@
 
 Simulation::Simulation(RobotType robot, Graphics3D* window,
                        SimulatorControlParameters& params, ControlParameters& userParams, std::function<void(void)> uiUpdate)
-    : _simParams(params), _userParams(userParams), _tau(12) {
+    : _simParams(params), _userParams(userParams), _tau(14) {
   _uiUpdate = uiUpdate;
   // init parameters
   printf("[Simulation] Load parameters...\n");
@@ -78,23 +78,23 @@ Simulation::Simulation(RobotType robot, Graphics3D* window,
       new DynamicsSimulator<double>(_model, (bool)_simParams.use_spring_damper);
   _robotDataSimulator = new DynamicsSimulator<double>(_robotDataModel, false);
 
-  DVec<double> zero12(12);
-  for (u32 i = 0; i < 12; i++) {
-    zero12[i] = 0.;
+  DVec<double> zero14(14);
+  for (u32 i = 0; i < 14; i++) {
+    zero14[i] = 0.;
   }
 
   // set some sane defaults:
-  _tau = zero12;
-  _robotControllerState.q = zero12;
-  _robotControllerState.qd = zero12;
+  _tau = zero14;
+  _robotControllerState.q = zero14;
+  _robotControllerState.qd = zero14;
   FBModelState<double> x0;
   x0.bodyOrientation = rotationMatrixToQuaternion(
       ori::coordinateRotation(CoordinateAxis::Z, 0.));
   // Mini Cheetah
   x0.bodyPosition.setZero();
   x0.bodyVelocity.setZero();
-  x0.q = zero12;
-  x0.qd = zero12;
+  x0.q = zero14;
+  x0.qd = zero14;
 
   // Mini Cheetah Initial Posture
   // x0.bodyPosition[2] = -0.49;
@@ -836,7 +836,7 @@ void Simulation::updateGraphics() {
       _sharedMemory().robotToSim.mainCheetahVisualization.quat.cast<double>();
   _robotControllerState.bodyPosition =
       _sharedMemory().robotToSim.mainCheetahVisualization.p.cast<double>();
-  for (int i = 0; i < 12; i++)
+  for (int i = 0; i < 14; i++)
     _robotControllerState.q[i] =
         _sharedMemory().robotToSim.mainCheetahVisualization.q[i];
   _robotDataSimulator->setState(_robotControllerState);

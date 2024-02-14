@@ -12,9 +12,9 @@ void DrawList::loadFiles() {
   std::vector<std::string> names = {
       "c3_body.obj",         "mini_abad.obj",
       "c3_upper_link.obj",   "c3_lower_link.obj",
-      "mini_body.obj",       "mini_abad.obj",
+      "mini_body_new.obj",       "mini_abad.obj",
       "mini_upper_link.obj", "mini_lower_link.obj",
-      "sphere.obj",          "cube.obj"};
+      "sphere.obj",          "cube.obj", "ShaftedFlywheel.obj"};
   for (const auto& name : names) {
     std::string filename = _baseFileName + name;
     _vertexData.emplace_back();
@@ -37,8 +37,9 @@ void DrawList::loadFiles() {
   }
   _sphereLoadIndex = 8;
   _cubeLoadIndex = 9;
-  _miniCheetahLoadIndex = 4;
+  _miniCheetahLoadIndex = 4;   
   _cheetah3LoadIndex = 0;
+  _flyWheelLoadIndex = 10;
 }
 /*!
  * Load the cheetah 3 model and build the draw list.
@@ -137,12 +138,14 @@ size_t DrawList::addMiniCheetah(Vec4<float> color, bool useOld, bool canHide) {
   size_t j0 = _nTotal;
 
   // set model offsets:
-  QMatrix4x4 bodyOffset, upper, lower, eye;
+  QMatrix4x4 bodyOffset, upper, lower, eye, flywheelXOffset, flywheelYOffset; 
   QMatrix4x4 abadOffsets[4];
   eye.setToIdentity();
 
   // body
   bodyOffset.setToIdentity();
+  bodyOffset.translate(-.15f,-.1f,-.05f);
+
 
   // abads (todo, check these)
   abadOffsets[0].setToIdentity();  // n
@@ -173,7 +176,20 @@ size_t DrawList::addMiniCheetah(Vec4<float> color, bool useOld, bool canHide) {
   lower.setToIdentity();
   lower.rotate(180, 0, 1, 0);
 
-  SolidColor bodyColor, abadColor, link1Color, link2Color;
+  //flywheel on the X axis
+  flywheelXOffset.setToIdentity(); 
+  flywheelXOffset.rotate(90,1,0,0);
+  flywheelXOffset.rotate(90,0,1,0);
+  flywheelXOffset.translate(0.07f,-0.1f, -0.135f); // { Sideway,upDown,FrontBack}
+
+
+  //flywheel on Y axis
+  flywheelYOffset.setToIdentity(); 
+  flywheelYOffset.rotate(90,1,0,0);
+  flywheelYOffset.translate(-0.05f,-0.1f, 0.0f); // {FrontBack,upDown,Sideway }
+
+
+  SolidColor bodyColor, abadColor, link1Color, link2Color, flywheelColor; 
   bodyColor.rgba = useOld ? Vec4<float>(.2, .2, .4, .3) : color;
   bodyColor.useSolidColor = true;
 
@@ -186,6 +202,11 @@ size_t DrawList::addMiniCheetah(Vec4<float> color, bool useOld, bool canHide) {
   link2Color.rgba = useOld ? Vec4<float>(.2, .2, .4, .3) : color;
   link2Color.useSolidColor = true;
 
+  flywheelColor.rgba = useOld ? Vec4<float>(0, 0, 0, 1) : color;
+  flywheelColor.useSolidColor = true;
+ 
+
+
   _canBeHidden.push_back(canHide);
 
   // add objects
@@ -193,7 +214,9 @@ size_t DrawList::addMiniCheetah(Vec4<float> color, bool useOld, bool canHide) {
   _modelOffsets.push_back(bodyOffset);
   _kinematicXform.push_back(eye);
   _instanceColor.push_back(bodyColor);
-  _nTotal++;
+  _nTotal++; 
+
+
 
   for (int i = 0; i < 4; i++) {
     _objectMap.push_back(i0 + 1);
@@ -204,7 +227,7 @@ size_t DrawList::addMiniCheetah(Vec4<float> color, bool useOld, bool canHide) {
 
     _objectMap.push_back(i0 + 2);
     _canBeHidden.push_back(canHide);
-    _modelOffsets.push_back(upper);
+    _modelOffsets.push_back(upper); 
     _kinematicXform.push_back(eye);
     _instanceColor.push_back(link1Color);
 
@@ -216,10 +239,30 @@ size_t DrawList::addMiniCheetah(Vec4<float> color, bool useOld, bool canHide) {
     _nTotal += 3;
   }
 
-  // printf("add mini cheetah (%d) id %ld\n", (int)canHide, j0);
-  // for(u32 i = 0; i < _canBeHidden.size(); i++) {
-  //   printf(" [%02d] %d\n", i, _canBeHidden[i]);
-  // }
+    // add flywheel on the y axis 
+  _objectMap.push_back(_flyWheelLoadIndex);
+  _modelOffsets.push_back(flywheelYOffset);
+  _canBeHidden.push_back(true);
+  _kinematicXform.push_back(eye);
+  _instanceColor.push_back(flywheelColor);
+  _nTotal++;  
+
+
+  // add flywheel on the x axis 
+  _objectMap.push_back(_flyWheelLoadIndex);
+  _modelOffsets.push_back(flywheelXOffset);
+  _canBeHidden.push_back(canHide);
+  _kinematicXform.push_back(eye);
+  _instanceColor.push_back(flywheelColor);
+  _nTotal++;  
+
+
+
+
+  printf("add mini cheetah (%d) id %ld\n", (int)canHide, j0);
+  for(u32 i = 0; i < _canBeHidden.size(); i++) {
+    printf(" [%02d] %d\n", i, _canBeHidden[i]);
+  }
   return j0;
 }
 

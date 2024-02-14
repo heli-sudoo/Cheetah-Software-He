@@ -484,7 +484,7 @@ void FloatingBaseModel<T>::forwardKinematics() {
                          _state.bodyPosition);
   _v[5] = _state.bodyVelocity;
   for (size_t i = 6; i < _nDof; i++) {
-    // joint xform
+    
     Mat6<T> XJ = jointXform(_jointTypes[i], _jointAxes[i], _state.q[i - 6]);
     _Xup[i] = XJ * _Xtree[i];
     _S[i] = jointMotionSubspace<T>(_jointTypes[i], _jointAxes[i]);
@@ -503,6 +503,7 @@ void FloatingBaseModel<T>::forwardKinematics() {
     // Coriolis accelerations
     _c[i] = motionCrossProduct(_v[i], vJ);
     _crot[i] = motionCrossProduct(_vrot[i], vJrot);
+
   }
 
   // calculate from absolute transformations

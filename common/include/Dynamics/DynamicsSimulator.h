@@ -53,7 +53,7 @@ class DynamicsSimulator {
   void runABA(const DVec<T>& tau) { _model.runABA(tau, _dstate); }
 
   //! Do forward kinematics for feet
-  void forwardKinematics() { _model.forwardKinematics(); }
+  void forwardKinematics() {  _model.forwardKinematics(); }
 
   //! Integrate to find new _state
   void integrate(T dt);

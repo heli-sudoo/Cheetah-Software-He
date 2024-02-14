@@ -23,9 +23,9 @@
  * Basic parameters for a cheetah-shaped robot
  */
 namespace cheetah {
-constexpr size_t num_act_joint = 12;
-constexpr size_t num_q = 19;
-constexpr size_t dim_config = 18;
+constexpr size_t num_act_joint = 12 + 2; //adding 2 for flywheels
+constexpr size_t num_q = 19 + 2; //adding 2 for flywheels
+constexpr size_t dim_config = 18+ 2; //adding 2 for flywheels
 constexpr size_t num_leg = 4;
 constexpr size_t num_leg_joint = 3;
 }  // namespace cheetah
@@ -63,16 +63,19 @@ class Quadruped {
  public:
   EIGEN_MAKE_ALIGNED_OPERATOR_NEW
   RobotType _robotType;
-  T _bodyLength, _bodyWidth, _bodyHeight, _bodyMass;
-  T _abadGearRatio, _hipGearRatio, _kneeGearRatio;
+  T _bodyLength, _bodyWidth, _bodyHeight, _bodyMass, _flywheelMass;
+  T _abadGearRatio, _hipGearRatio, _kneeGearRatio, _flywheelRatio;
   T _abadLinkLength, _hipLinkLength, _kneeLinkLength, _kneeLinkY_offset, _maxLegLength;
   T _motorKT, _motorR, _batteryV;
   T _motorTauMax;
   T _jointDamping, _jointDryFriction;
   SpatialInertia<T> _abadInertia, _hipInertia, _kneeInertia, _abadRotorInertia,
-      _hipRotorInertia, _kneeRotorInertia, _bodyInertia;
+      _hipRotorInertia, _kneeRotorInertia, _bodyInertia, 
+      _flywheelRxInertia, _flywheelRyInertia,
+      _flywheelRotorXInertia, _flywheelRotorYInertia; 
   Vec3<T> _abadLocation, _abadRotorLocation, _hipLocation, _hipRotorLocation,
-      _kneeLocation, _kneeRotorLocation;
+      _kneeLocation, _kneeRotorLocation,
+      _flywheelRyLocation, _flywheelRxLocation,_flywheelRotorXLocation, _flywheelRotorYLocation; 
   FloatingBaseModel<T> buildModel();
   bool buildModel(FloatingBaseModel<T>& model);
   std::vector<ActuatorModel<T>> buildActuatorModels();

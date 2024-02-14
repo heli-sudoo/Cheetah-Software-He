@@ -51,7 +51,7 @@ struct ArrowVisualization {
  * Debugging robot (draws the same type of robot as currently simulating)
  */
 struct CheetahVisualization {
-  Vec12<float> q;
+  Vec14<float> q;
   Quat<float> quat;
   Vec3<float> p;
   Vec4<float> color;
