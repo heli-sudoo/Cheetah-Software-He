@@ -50,11 +50,11 @@ Quadruped<T> buildMiniCheetah() {
 
   //flywheel 
   cheetah._flywheelMass = 0.381; //1.69; 
-  cheetah._flywheelRyLocation = Vec3<T> (0.0,    0.0,  0.104 + cheetah._bodyHeight / 2.0 ) ;
-  cheetah._flywheelRxLocation = Vec3<T> (0.118,  0.0,  0.104 + cheetah._bodyHeight / 2.0); 
+  cheetah._flywheelRyLocation = Vec3<T> (0.0,    0.0,  0.099 + cheetah._bodyHeight / 2.0 ) ;
+  cheetah._flywheelRxLocation = Vec3<T> (0.102,  0.0,  0.099 + cheetah._bodyHeight / 2.0); 
 
-  cheetah._flywheelRotorYLocation =Vec3<T> (0.0,    0.0,  0.104 + cheetah._bodyHeight / 2.0 );
-  cheetah._flywheelRotorXLocation = Vec3<T> (0.118, 0.0,  0.104  + cheetah._bodyHeight / 2.0); 
+  cheetah._flywheelRotorYLocation = Vec3<T> (0.0,    0.0,  0.099 + cheetah._bodyHeight / 2.0 );
+  cheetah._flywheelRotorXLocation = Vec3<T> (0.102, 0.0,  0.099  + cheetah._bodyHeight / 2.0); 
 
 
 
