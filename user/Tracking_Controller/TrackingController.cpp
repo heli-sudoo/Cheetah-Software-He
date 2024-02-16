@@ -186,7 +186,7 @@ void Tracking_Controller::locomotion_ctrl()
 
     applyVelocityDisturbance();
 
-    Vec14<float> tau_ff(14);
+    Vec12<float> tau_ff(12);
     tau_ff = mpc_solution.torque;
 
     // Print desired GRFs with negative normal forces
@@ -217,9 +217,9 @@ void Tracking_Controller::locomotion_ctrl()
         Qu_mpc += mpc_solution.Qux.rightCols(34+4)*(x_se - x_des).tail(34+4);  //Nganga -- this drops the position??
 
         // prepare other information for VWBC update
-        Vec20<float> qMeas = x_se.head<20>();            // measured generalized joint
-        Vec20<float> vMeas = x_se.tail<20>();            // measured generalized vel
-        Vec20<float> qDes, vDes, qddDes;
+        Vec18<float> qMeas = x_se.head<18>();            // measured generalized joint
+        Vec18<float> vMeas = x_se.tail<18>();            // measured generalized vel
+        Vec18<float> qDes, vDes, qddDes;
         qDes << mpc_solution.pos, mpc_solution.eul, qJ_des;
         vDes << mpc_solution.vWorld, mpc_solution.eulrate, qJd_des;       
 
@@ -250,7 +250,7 @@ void Tracking_Controller::locomotion_ctrl()
             vwbc_info_lcmt_data.time = mpc_time;
             utility_lcm.publish("vwbc_info", &vwbc_info_lcmt_data);
         }    
-        qJd_des +=  qddDes.tail<14>()* _controlParameters->controller_dt;        
+        qJd_des +=  qddDes.tail<12>()* _controlParameters->controller_dt;        
         qJ_des += qJ_des * _controlParameters->controller_dt;      
     }            
     
@@ -401,7 +401,7 @@ void Tracking_Controller::updateMPCCommand()
 
         qdd_des_.head<3>() = (mpc_sol_next.vWorld - mpc_sol_curr.vWorld)/dt_mpc; //pos
         qdd_des_.segment<3>(3) = (mpc_sol_next.eulrate - mpc_sol_curr.eulrate)/dt_mpc; //eul
-        qdd_des_.tail<14>() = (mpc_sol_next.qJd - mpc_sol_curr.qJd)/dt_mpc;
+        qdd_des_.tail<12>() = (mpc_sol_next.qJd - mpc_sol_curr.qJd)/dt_mpc;
     }   
     
     if (!find_a_solution)

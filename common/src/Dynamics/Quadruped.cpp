@@ -106,7 +106,6 @@ bool Quadruped<T>::buildModel(FloatingBaseModel<T>& model) {
   }
 
 
-  // bodyID++;
   // First Flywheel Joint about Y Axis
   Mat6<T> xtreeflywheelY      = createSXform(I3, _flywheelRyLocation);
   Mat6<T> xtreeflywheelRotorY = createSXform(I3, _flywheelRotorYLocation);
@@ -124,10 +123,11 @@ bool Quadruped<T>::buildModel(FloatingBaseModel<T>& model) {
   model.addBody(_flywheelRxInertia,
               _flywheelRotorXInertia,
               _flywheelRatio, baseID , JointType::Revolute,
-              CoordinateAxis::X, xtreeflywheelX, xtreeflywheelRotorX);
+              CoordinateAxis::X,xtreeflywheelRotorX, xtreeflywheelX);
   // model.addGroundContactPoint(baseID, Vec3<T>(0, 0, -_hipLinkLength));
 
 
+  
 
   Vec3<T> g(0, 0, -9.81);
   model.setGravity(g);

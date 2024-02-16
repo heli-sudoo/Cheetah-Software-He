@@ -180,13 +180,14 @@ size_t DrawList::addMiniCheetah(Vec4<float> color, bool useOld, bool canHide) {
   flywheelXOffset.setToIdentity(); 
   flywheelXOffset.rotate(90,1,0,0);
   flywheelXOffset.rotate(90,0,1,0);
-  flywheelXOffset.translate(0.07f,-0.1f, -0.135f); // { Sideway,upDown,FrontBack}
+  flywheelXOffset.translate(-0.05f,-0.1f,0.0f); // { Sideway,upDown,FrontBack}
+  // flywheelXOffset.translate(0.07f,-0.1f, -0.135f); // { Sideway,upDown,FrontBack}
 
 
   //flywheel on Y axis
   flywheelYOffset.setToIdentity(); 
   flywheelYOffset.rotate(90,1,0,0);
-  flywheelYOffset.translate(-0.05f,-0.1f, 0.0f); // {FrontBack,upDown,Sideway }
+  flywheelYOffset.translate(0.0f,-0.1f, 0.0f); // {FrontBack,upDown,Sideway }
 
 
   SolidColor bodyColor, abadColor, link1Color, link2Color, flywheelColor; 
