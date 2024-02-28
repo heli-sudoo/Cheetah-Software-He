@@ -14,6 +14,7 @@ public:
         INIT_PARAMETER(Kp_joint),
         INIT_PARAMETER(Kd_joint),
         INIT_PARAMETER(WBC),
+        INIT_PARAMETER(use_fly_wheels),
         INIT_PARAMETER(kick_start),
         INIT_PARAMETER(kick_dur),
         INIT_PARAMETER(kick_linear),
@@ -27,6 +28,7 @@ public:
   DECLARE_PARAMETER(Vec3<double>, Kp_joint);
   DECLARE_PARAMETER(Vec3<double>, Kd_joint);  
   DECLARE_PARAMETER(double, WBC);
+  DECLARE_PARAMETER(double,use_fly_wheels);
   DECLARE_PARAMETER(double, kick_start);
   DECLARE_PARAMETER(double, kick_dur);
   DECLARE_PARAMETER(Vec3<double>, kick_linear);

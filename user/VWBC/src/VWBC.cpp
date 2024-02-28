@@ -13,7 +13,7 @@ using Chol = Eigen::LDLT<DMat<T>>;
 namespace quadloco
 {
 
-    VWBC::VWBC() : numActJoints_(12),
+    VWBC::VWBC() : numActJoints_(14),
                    numContacts_(0)
     {      
         J6D_.setZero(6, nv);
@@ -76,11 +76,11 @@ namespace quadloco
         @NOTE:
                 Qu here = Qu_hat - Quu*u_ff + Qux*(x - xde) are updated before calling VWBC
     */
-    void VWBC::updateProblem(const Vec18<scalar_t> &qMeas, const Vec18<scalar_t> &vMeas,
-                             const Vec18<scalar_t> &qDes, const Vec18<scalar_t> &vDes,
-                             const Vec18<scalar_t>& qddDes,
-                             const Vec12<scalar_t> &tauDes, const Vec12<scalar_t> GRFDes,
-                             const Vec12<scalar_t> &Qu, const Mat12<scalar_t> &Quu)
+    void VWBC::updateProblem(const Vec20<scalar_t> &qMeas, const Vec20<scalar_t> &vMeas,
+                             const Vec20<scalar_t> &qDes, const Vec20<scalar_t> &vDes,
+                             const Vec20<scalar_t>& qddDes,
+                             const Vec14<scalar_t> &tauDes, const Vec12<scalar_t> GRFDes,
+                             const Vec14<scalar_t> &Qu, const Mat14<scalar_t> &Quu)
     {
         tauDes_ = tauDes;
         qddDes_ = qddDes;
@@ -97,7 +97,7 @@ namespace quadloco
         for (size_t i = 0; i < 4; i++)
         {
             EEdrift[i].setZero(3);
-            JEE[i].setZero(3,18);
+            JEE[i].setZero(3,20);
         }
         vector_t qddZero(18);
         qddZero.setZero();
@@ -132,8 +132,8 @@ namespace quadloco
         }
         
         // apply PD rule on qddDes        
-        qddDes_.tail(16)+= -P_gain_ * (qMeas - qDes).tail(16);
-        qddDes_.tail(16)+= -D_gain_ * (vMeas - vDes).tail(16);     
+        qddDes_.tail(16 + 2)+= -P_gain_ * (qMeas - qDes).tail(16 + 2);
+        qddDes_.tail(16 + 2)+= -D_gain_ * (vMeas - vDes).tail(16 + 2);     
     }
 
     void VWBC::solveProblem()
@@ -458,7 +458,7 @@ namespace quadloco
 
         // Check the positive definiteness of Quu
         Chol<scalar_t> Quu_chol;
-        Quu_chol = Quu_chol.compute(Quu_ - Mat12<scalar_t>::Identity() * 1e-9);
+        Quu_chol = Quu_chol.compute(Quu_ - Mat14<scalar_t>::Identity() * 1e-9);
         if (!Quu_chol.isPositive())
         {
             printf("Quu is not positive definite \n");            

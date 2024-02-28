@@ -8,6 +8,7 @@
 #define ROBOT_CONTROLLER_H
 
 #include "Controllers/LegController.h"
+#include "Controllers/FlyController.h"
 #include "Dynamics/FloatingBaseModel.h"
 #include "Controllers/StateEstimatorContainer.h"
 #include "Controllers/DesiredStateCommand.h"
@@ -36,6 +37,7 @@ protected:
   Quadruped<float>* _quadruped = nullptr;
   FloatingBaseModel<float>* _model = nullptr;
   LegController<float>* _legController = nullptr;
+  FlyController<float>* _flyController = nullptr;
   StateEstimatorContainer<float>* _stateEstimator = nullptr;
   StateEstimate<float>* _stateEstimate = nullptr;
   GamepadCommand* _driverCommand = nullptr;

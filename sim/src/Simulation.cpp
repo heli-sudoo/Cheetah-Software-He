@@ -155,8 +155,8 @@ Simulation::Simulation(RobotType robot, Graphics3D* window,
   x0.q[9] = 0.7;
   x0.q[10] = -1.0;
   x0.q[11] = -2.715;
-  x0.q[12] =  M_PI * 0.5; 
-  x0.q[13] =  M_PI * 0.5; 
+  x0.q[12] =  M_PI * 1.0; 
+  x0.q[13] =  M_PI * 1.0; 
 
 
   setRobotState(x0);
@@ -172,6 +172,14 @@ Simulation::Simulation(RobotType robot, Graphics3D* window,
       _spineBoards[leg].resetData();
       _spineBoards[leg].resetCommand();
     }
+    for (int fly = 0; fly < 2; fly++){
+      _flyBoards[fly].init(fly); 
+      _flyBoards[fly].data  = &_flyData;
+      _flyBoards[fly].cmd  = &_flyCommand;
+      _flyBoards[fly].resetData();
+      _flyBoards[fly].resetCommand();
+    }
+
   } else if (_robot == RobotType::CHEETAH_3) {
     // init ti board
     for (int leg = 0; leg < 4; leg++) {
@@ -355,6 +363,13 @@ void Simulation::step(double dt, double dtLowLevelControl,
             _simulator->getState().qd[leg * 3 + joint]);
       }
     }
+    //flywheels
+    for (int fly = 0; fly < 2; fly++){
+      _tau[12+fly] = _actuatorModels[3].getTorque(_flyBoards[fly].torque_out,_simulator->getState().qd[12 + fly]);   
+      if (_tau[12+fly] > 3.0){
+        printf("\n  _tau[12+fly] %f", _tau[12+fly]);
+      }
+    }
   } else if (_robot == RobotType::CHEETAH_3) {
     for (int leg = 0; leg < 4; leg++) {
       for (int joint = 0; joint < 3; joint++) {
@@ -399,9 +414,22 @@ void Simulation::lowLevelControl() {
       _spiData.qd_knee[leg] = _simulator->getState().qd[leg * 3 + 2];
     }
 
+    //flywheels
+    for (int fly = 0; fly < 2; fly++)
+    {
+      _flyData.q_fly[fly] = _simulator->getState().q[12 + fly];
+      _flyData.qd_fly[fly] = _simulator->getState().qd[12 + fly];
+    } 
+
     // run spine board control:
     for (auto& spineBoard : _spineBoards) {
       spineBoard.run();
+    }
+
+    //flywheels 
+    for (auto& flyBoard : _flyBoards)
+    { 
+      flyBoard.run(); 
     }
 
   } else if (_robot == RobotType::CHEETAH_3) {
@@ -445,6 +473,7 @@ void Simulation::highLevelControl() {
   // send leg data to robot
   if (_robot == RobotType::MINI_CHEETAH) {
     _sharedMemory().simToRobot.spiData = _spiData;
+    _sharedMemory().simToRobot.flyData = _flyData; 
   } else if (_robot == RobotType::CHEETAH_3) {
     for (int i = 0; i < 4; i++) {
       _sharedMemory().simToRobot.tiBoardData[i] = *_tiBoards[i].data;
@@ -481,8 +510,12 @@ void Simulation::highLevelControl() {
   // update
   if (_robot == RobotType::MINI_CHEETAH) {
     _spiCommand = _sharedMemory().robotToSim.spiCommand;
-
+    _flyCommand = _sharedMemory().robotToSim.flyCommand; 
     // pretty_print(_spiCommand.q_des_abad, "q des abad", 4);
+    if ( std::abs(_flyCommand.qd_des_fly[0]) >= 0.4f  || std::abs(_flyCommand.qd_des_fly[1]) >= 0.4f ) {
+      pretty_print(_flyCommand.q_des_fly, "q_des_fly",2); 
+      pretty_print(_flyCommand.qd_des_fly, "qd_des_fly",2); 
+    }
     // pretty_print(_spiCommand.q_des_hip, "q des hip", 4);
     // pretty_print(_spiCommand.q_des_knee, "q des knee", 4);
   } else if (_robot == RobotType::CHEETAH_3) {

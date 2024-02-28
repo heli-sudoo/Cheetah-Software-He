@@ -16,6 +16,7 @@
 #include "Controllers/ContactEstimator.h"
 #include "Controllers/DesiredStateCommand.h"
 #include "Controllers/LegController.h"
+#include "Controllers/FlyController.h"
 #include "Dynamics/Quadruped.h"
 #include "JPosInitializer.h"
 
@@ -49,6 +50,8 @@ class RobotRunner : public PeriodicTask {
   CheaterState<double>* cheaterState;
   SpiData* spiData;
   SpiCommand* spiCommand;
+  FlyData* flyData; 
+  FlyCommand* flyCommand; 
   TiBoardCommand* tiBoardCommand;
   TiBoardData* tiBoardData;
   RobotControlParameters* controlParameters;
@@ -66,6 +69,7 @@ class RobotRunner : public PeriodicTask {
   JPosInitializer<float>* _jpos_initializer;
   Quadruped<float> _quadruped;
   LegController<float>* _legController = nullptr;
+  FlyController<float>* _flyController = nullptr;
   StateEstimate<float> _stateEstimate;
   StateEstimatorContainer<float>* _stateEstimator;
   bool _cheaterModeEnabled = false;
@@ -75,6 +79,11 @@ class RobotRunner : public PeriodicTask {
   leg_control_command_lcmt leg_control_command_lcm;
   state_estimator_lcmt state_estimator_lcm;
   leg_control_data_lcmt leg_control_data_lcm;
+  fly_control_command_lcmt fly_control_command_lcm;
+  fly_control_data_lcmt fly_control_data_lcm;
+
+
+
   // Contact Estimator to calculate estimated forces and contacts
 
   FloatingBaseModel<float> _model;

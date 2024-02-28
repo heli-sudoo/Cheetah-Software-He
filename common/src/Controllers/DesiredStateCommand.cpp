@@ -11,8 +11,8 @@
 template <typename T>
 void DesiredStateData<T>::zero() {
   // Overall desired state
-  stateDes = Vec12<T>::Zero();
-  stateTrajDes = Eigen::Matrix<T, 12, 10>::Zero();
+  stateDes = Vec14<T>::Zero();
+  stateTrajDes = Eigen::Matrix<T, 14, 10>::Zero();
 }
 
 template struct DesiredStateData<double>;
@@ -83,6 +83,8 @@ void DesiredStateCommand<T>::convertToStateCommands() {
   data.stateDes(3) = 0.0; // Roll
   data.stateDes(4) = deadband(rightAnalogStick[1], minPitch, maxPitch);  // Pitch
   data.stateDes(5) = dt * data.stateDes(11);  // Yaw
+  data.stateDes(12) = 0.0;  // flywheels
+  data.stateDes(13) = 0.0;  // flywheels
 }
 
 template <typename T>
@@ -101,7 +103,7 @@ void DesiredStateCommand<T>::setCommandLimits(T minVelX_in, T maxVelX_in,
  */
 template <typename T>
 void DesiredStateCommand<T>::desiredStateTrajectory(int N, Vec10<T> dtVec) {
-  A = Mat12<T>::Zero();
+  A = Mat14<T>::Zero();
   A(0, 0) = 1;
   A(1, 1) = 1;
   A(2, 2) = 1;
@@ -114,6 +116,8 @@ void DesiredStateCommand<T>::desiredStateTrajectory(int N, Vec10<T> dtVec) {
   A(9, 9) = 1;
   A(10, 10) = 1;
   A(11, 11) = 1;
+  A(12, 12) = 1;
+  A(13, 13) = 1;
   data.stateTrajDes.col(0) = data.stateDes;
 
   for (int k = 1; k < N; k++) {
@@ -124,8 +128,8 @@ void DesiredStateCommand<T>::desiredStateTrajectory(int N, Vec10<T> dtVec) {
     A(4, 10) = dtVec(k - 1);
     A(5, 11) = dtVec(k - 1);
     data.stateTrajDes.col(k) = A * data.stateTrajDes.col(k - 1);
-    for (int i = 0; i < 12; i++) {
-      // std::cout << data.stateTrajDes(i, k) << " ";
+    for (int i = 0; i < 14; i++) {
+      std::cout << data.stateTrajDes(i, k) << " ";
     }
     // std::cout << std::endl;
   }
@@ -205,6 +209,9 @@ void DesiredStateCommand<T>::printStateCommandInfo() {
               << "\n";
     std::cout << "Angular Velocity X: " << data.stateDes(9)
               << " | Y: " << data.stateDes(10) << " | Z: " << data.stateDes(11)
+              << "\n";
+    std::cout << "Flywheel X: " << data.stateDes(12)
+              << " | Y: " << data.stateDes(13) 
               << "\n";
     std::cout << std::endl;
     std::cout << std::endl;

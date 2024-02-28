@@ -1,0 +1,10 @@
+struct fly_control_command_lcmt {
+    float tau_ff[2];
+    float q_des[2];
+    float qd_des[2];
+    float kp_cartesian[2];
+    float kd_cartesian[2];
+    float kp_joint[2];
+    float kd_joint[2];
+    float microtime;    
+}

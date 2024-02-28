@@ -47,8 +47,10 @@ void RobotRunner::init() {
 
   // Always initialize the leg controller and state entimator
   _legController = new LegController<float>(_quadruped);
+  _flyController = new FlyController<float>(_quadruped);
   _stateEstimator = new StateEstimatorContainer<float>(
       cheaterState, vectorNavData, _legController->datas,
+      _flyController->datas,
       &_stateEstimate, controlParameters);
   initializeStateEstimator(false);
 
@@ -65,6 +67,7 @@ void RobotRunner::init() {
   _robot_ctrl->_model = &_model;
   _robot_ctrl->_quadruped = &_quadruped;
   _robot_ctrl->_legController = _legController;
+  _robot_ctrl->_flyController = _flyController;
   _robot_ctrl->_stateEstimator = _stateEstimator;
   _robot_ctrl->_stateEstimate = &_stateEstimate;
   _robot_ctrl->_visualizationData= visualizationData;
@@ -95,17 +98,25 @@ void RobotRunner::run() {
   ++count_ini;
   if (count_ini < 10) {
     _legController->setEnabled(false);
+    _flyController->setEnabled(false);
   } else if (20 < count_ini && count_ini < 30) {
     _legController->setEnabled(false);
+    _flyController->setEnabled(false);
   } else if (40 < count_ini && count_ini < 50) {
     _legController->setEnabled(false);
+    _flyController->setEnabled(false);
   } else {
     _legController->setEnabled(true);
+    _flyController->setEnabled(true);
 
     if( (rc_control.mode == 0) && controlParameters->use_rc ) {
       if(count_ini%1000 ==0)   printf("ESTOP!\n");
       for (int leg = 0; leg < 4; leg++) {
         _legController->commands[leg].zero();
+      }
+      for (int fly = 0; fly < 2; fly++)
+      {
+        _flyController->commands[fly].zero(); 
       }
       _robot_ctrl->Estop();
     }else {
@@ -127,6 +138,10 @@ void RobotRunner::run() {
         for (int leg = 0; leg < 4; leg++) {
           _legController->commands[leg].kpJoint = kpMat;
           _legController->commands[leg].kdJoint = kdMat;
+        }
+        for (int fly = 0; fly < 2; fly ++){
+          _flyController->commands[fly].kpJoint = kpMat(0,0);
+          _flyController->commands[fly].kdJoint = kdMat(0,0);
         }
       } else {
         // Run Control 
@@ -150,6 +165,9 @@ void RobotRunner::run() {
         _legController->datas[leg].q[joint];
     }
   }
+  for (int fly = 0; fly < 2; fly++){
+    cheetahMainVisualization->q[12+fly] = _flyController->datas[fly].q; 
+  }
   cheetahMainVisualization->p.setZero();
   cheetahMainVisualization->p = _stateEstimate.position;
   cheetahMainVisualization->quat = _stateEstimate.orientation;
@@ -165,6 +183,7 @@ void RobotRunner::setupStep() {
   // Update the leg data
   if (robotType == RobotType::MINI_CHEETAH) {
     _legController->updateData(spiData);
+    _flyController->updateData(flyData);
   } else if (robotType == RobotType::CHEETAH_3) {
     _legController->updateData(tiBoardData);
   } else {
@@ -175,6 +194,11 @@ void RobotRunner::setupStep() {
   _legController->zeroCommand();
   _legController->setEnabled(true);
   _legController->setMaxTorqueCheetah3(208.5);
+
+  _flyController->zeroCommand();
+  _flyController->setEnabled(true);
+
+
 
   // state estimator
   // check transition to cheater mode:
@@ -204,16 +228,21 @@ void RobotRunner::setupStep() {
 void RobotRunner::finalizeStep() {
   if (robotType == RobotType::MINI_CHEETAH) {
     _legController->updateCommand(spiCommand);
+    _flyController->updateCommand(flyCommand);
   } else if (robotType == RobotType::CHEETAH_3) {
     _legController->updateCommand(tiBoardCommand);
   } else {
     assert(false);
   }
   _legController->setLcm(&leg_control_data_lcm, &leg_control_command_lcm);
+  _flyController->setLcm(&fly_control_data_lcm, &fly_control_command_lcm); 
   _stateEstimate.setLcm(state_estimator_lcm);
   _lcm.publish("leg_control_command", &leg_control_command_lcm);
   _lcm.publish("leg_control_data", &leg_control_data_lcm);
+  _lcm.publish("fly_control_command", &fly_control_command_lcm);
+  _lcm.publish("fly_control_data", &fly_control_data_lcm);
   _lcm.publish("state_estimator", &state_estimator_lcm);
+
   _iterations++;
 }
 
@@ -238,6 +267,7 @@ void RobotRunner::initializeStateEstimator(bool cheaterMode) {
 
 RobotRunner::~RobotRunner() {
   delete _legController;
+  delete _flyController;
   delete _stateEstimator;
   delete _jpos_initializer;
 }

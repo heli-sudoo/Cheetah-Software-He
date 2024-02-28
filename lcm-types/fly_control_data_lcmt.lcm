@@ -1,0 +1,6 @@
+struct fly_control_data_lcmt {
+    float q[2];
+    float qd[2];
+    float tau_est[2];
+    float microtime;
+}

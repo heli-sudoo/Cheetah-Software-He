@@ -26,6 +26,10 @@ mv lcm.jar java
 mkdir -p cpp
 mv *.hpp cpp
 
+
+export CLASSPATH=$CLASSPATH:$PWD/java/my_types.jar
+
+
 mkdir -p python
 mv *.py python
 

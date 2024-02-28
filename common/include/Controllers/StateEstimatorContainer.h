@@ -12,6 +12,7 @@
 
 #include "ControlParameters/RobotParameters.h"
 #include "Controllers/LegController.h"
+#include "Controllers/FlyController.h"
 #include "SimUtilities/IMUTypes.h"
 #include "SimUtilities/VisualizationData.h"
 #include "state_estimator_lcmt.hpp"
@@ -62,6 +63,7 @@ struct StateEstimatorData {
   VectorNavData* vectorNavData;
   CheaterState<double>* cheaterState;
   LegControllerData<T>* legControllerData;
+  FlyControllerData<T>* flyControllerData;
   Vec4<T>* contactPhase;
   RobotControlParameters* parameters;
 };
@@ -97,11 +99,13 @@ class StateEstimatorContainer {
   StateEstimatorContainer(CheaterState<double>* cheaterState,
                           VectorNavData* vectorNavData,
                           LegControllerData<T>* legControllerData,
+                          FlyControllerData<T>* flyControllerData,
                           StateEstimate<T>* stateEstimate,
                           RobotControlParameters* parameters) {
     _data.cheaterState = cheaterState;
     _data.vectorNavData = vectorNavData;
     _data.legControllerData = legControllerData;
+    _data.flyControllerData = flyControllerData;
     _data.result = stateEstimate;
     _phase = Vec4<T>::Zero();
     _data.contactPhase = &_phase;

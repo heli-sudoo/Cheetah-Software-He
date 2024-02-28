@@ -60,6 +60,10 @@ using Vec24 = Eigen::Matrix<T, 24, 1>;
 template <typename T>
 using Vec28 = Eigen::Matrix<T, 28, 1>;
 
+// 2x2 Matrix
+template <typename T>
+using Mat2 = typename Eigen::Matrix<T, 2, 2>;
+
 // 3x3 Matrix
 template <typename T>
 using Mat3 = typename Eigen::Matrix<T, 3, 3>;

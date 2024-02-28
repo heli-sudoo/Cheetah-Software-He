@@ -49,7 +49,8 @@ Quadruped<T> buildMiniCheetah() {
   //cheetah._jointDryFriction = .0;
 
   //flywheel 
-  cheetah._flywheelMass = 0.381; //1.69; 
+  cheetah._flywheelMass = 0.381 ; //1.69; 
+  // cheetah._flywheelMass = 1.69; 
 
   cheetah._flywheelRyLocation = Vec3<T> (0.0,    0.0,      0.099 + cheetah._bodyHeight *  0.5 );
   cheetah._flywheelRotorYLocation = Vec3<T> (0.0,    0.0 , 0.099 + cheetah._bodyHeight * 0.5  );
@@ -119,15 +120,15 @@ Quadruped<T> buildMiniCheetah() {
 
   //assuming flywheel aligned with Z axis
   Mat3<T> flywheelRotZInertia;
-  //Without weighed plates
+  // Without weighed plates
   flywheelRotZInertia << 1007, 38, 4,
                         38, 875, 12,
                         4, 12, 1619;
-   //With weighted steel plates                  
-//   flywheelRotZInertia << 4768, 40, -2,
-//                         40, 4635, 6,
-//                         -2, 6, 6734;
-  flywheelRotZInertia = flywheelRotZInertia * 1e-6;
+  //  //With weighted steel plates                  
+  // flywheelRotZInertia << 4768, 40, -2,
+  //                       40, 4635, 6,
+  //                       -2, 6, 6734;
+  flywheelRotZInertia = flywheelRotZInertia  *  1e-6;
   
   //Conversion to proper axis
   Mat3<T> flywheelRotYInertia = RX * flywheelRotZInertia * RX.transpose(); 

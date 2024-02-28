@@ -6,6 +6,7 @@
 #include <chrono>
 #include <numeric>
 
+
 #define DRAW_PLAN
 #define PI 3.1415926
 
@@ -82,6 +83,8 @@ void Tracking_Controller::initializeController()
     roll_flip_plus_times = 0;
     roll_flip_mins_times = 0;
     raw_roll_cur = _stateEstimate->rpy[0];
+
+
 }
 
 /*
@@ -155,6 +158,9 @@ void Tracking_Controller::runController()
     _legController->_maxTorque = 150;
     _legController->_legsEnabled = true;
 
+    _flyController->_maxTorque = 7.5; 
+    _flyController->_flysEnabled = true; 
+
     switch (desired_command_mode)
     {
     case CONTROL_MODE::locomotion:
@@ -186,7 +192,7 @@ void Tracking_Controller::locomotion_ctrl()
 
     applyVelocityDisturbance();
 
-    Vec12<float> tau_ff(12);
+    Vec14<float> tau_ff(14);
     tau_ff = mpc_solution.torque;
 
     // Print desired GRFs with negative normal forces
@@ -204,7 +210,7 @@ void Tracking_Controller::locomotion_ctrl()
     if ((int)userParameters.WBC == 1)
     {        
         const auto& K_mpc = mpc_solution.K;
-        tau_ff += K_mpc.rightCols<34>() * (x_se - x_des).tail<34>();        
+        tau_ff += K_mpc.rightCols<34 + 4 >() * (x_se - x_des).tail<34 +4 >();        
     }
 
     // Value-Based WBC 
@@ -214,12 +220,12 @@ void Tracking_Controller::locomotion_ctrl()
         Qu_mpc.setZero();
         Quu_mpc = mpc_solution.Quu;
         Qu_mpc -= Quu_mpc * tau_ff;
-        Qu_mpc += mpc_solution.Qux.rightCols(34+4)*(x_se - x_des).tail(34+4);  //Nganga -- this drops the position??
+        Qu_mpc += mpc_solution.Qux.rightCols(34 +4)*(x_se - x_des).tail(34 +4);  //Nganga -- this drops the position??
 
         // prepare other information for VWBC update
-        Vec18<float> qMeas = x_se.head<18>();            // measured generalized joint
-        Vec18<float> vMeas = x_se.tail<18>();            // measured generalized vel
-        Vec18<float> qDes, vDes, qddDes;
+        Vec20<float> qMeas = x_se.head<20>();            // measured generalized joint
+        Vec20<float> vMeas = x_se.tail<20>();            // measured generalized vel
+        Vec20<float> qDes, vDes, qddDes;
         qDes << mpc_solution.pos, mpc_solution.eul, qJ_des;
         vDes << mpc_solution.vWorld, mpc_solution.eulrate, qJd_des;       
 
@@ -250,8 +256,8 @@ void Tracking_Controller::locomotion_ctrl()
             vwbc_info_lcmt_data.time = mpc_time;
             utility_lcm.publish("vwbc_info", &vwbc_info_lcmt_data);
         }    
-        qJd_des +=  qddDes.tail<12>()* _controlParameters->controller_dt;        
-        qJ_des += qJ_des * _controlParameters->controller_dt;      
+        qJd_des +=  qddDes.tail<14>()* _controlParameters->controller_dt;        
+        qJ_des  += qJ_des * _controlParameters->controller_dt;      
     }            
     
     for (int leg(0); leg < 4; leg++)
@@ -274,6 +280,25 @@ void Tracking_Controller::locomotion_ctrl()
             _legController->commands[leg].kdJoint = KdMat_joint;
         }              
     }
+
+    for (int fly = 0; fly < 2; fly++){
+
+        const auto& tau_ff_fly = tau_ff[12 + fly]; 
+        const auto& qDes_fly = qJ_des[12 + fly]; 
+        const auto& qdDes_fly = qJd_des[12 + fly]; 
+
+        _flyController->commands[fly].tauFeedForward = tau_ff_fly; 
+
+        _flyController->commands[fly].qDes = qDes_fly; 
+
+        _flyController->commands[fly].qdDes = qdDes_fly;
+
+        
+        _flyController->commands[fly].kpJoint = KpMat_joint(0,0); 
+        _flyController->commands[fly].kdJoint = KdMat_joint(0,0);
+        
+    }
+
     
     publishTrackingInfo();
 
@@ -288,12 +313,13 @@ void Tracking_Controller::updateStateEstimate()
     eul_se << yaw, se.rpy[1], roll;
     eulrate_se = omegaBodyToEulrate(eul_se, se.omegaBody);
 
-    //Nganga qj_se from flywheel missing
     const auto& legdatas = _legController->datas;
-    qJ_se << legdatas[1].q, legdatas[0].q, legdatas[3].q, legdatas[2].q;
-    qJd_se << legdatas[1].qd, legdatas[0].qd, legdatas[3].qd, legdatas[2].qd;
-    qJ_se.tail<2>() << 0.0;
-    qJd_se.tail<2>() << 0.0;
+    qJ_se.head<12>()  << legdatas[1].q, legdatas[0].q, legdatas[3].q, legdatas[2].q;
+    qJd_se.head<12>() << legdatas[1].qd, legdatas[0].qd, legdatas[3].qd, legdatas[2].qd;
+
+    const auto& flydatas = _flyController->datas; 
+    qJ_se.tail<2>() << flydatas[0].q, flydatas[1].q;
+    qJd_se.tail<2>() << flydatas[0].qd, flydatas[1].qd;
 
 
     x_se << se.position, eul_se, qJ_se, se.vWorld, eulrate_se, qJd_se;
@@ -401,7 +427,7 @@ void Tracking_Controller::updateMPCCommand()
 
         qdd_des_.head<3>() = (mpc_sol_next.vWorld - mpc_sol_curr.vWorld)/dt_mpc; //pos
         qdd_des_.segment<3>(3) = (mpc_sol_next.eulrate - mpc_sol_curr.eulrate)/dt_mpc; //eul
-        qdd_des_.tail<12>() = (mpc_sol_next.qJd - mpc_sol_curr.qJd)/dt_mpc;
+        qdd_des_.tail<14>() = (mpc_sol_next.qJd - mpc_sol_curr.qJd)/dt_mpc;
     }   
     
     if (!find_a_solution)
@@ -423,7 +449,8 @@ void Tracking_Controller::updateMPCCommand()
     qJ_des = mpc_solution.qJ;
     qJd_des = mpc_solution.qJd;        
 
-    x_des << pos_des, eul_des, qJ_des, vWorld_des, eulrate_des, qJd_des;                     
+    x_des << pos_des, eul_des, qJ_des, vWorld_des, eulrate_des, qJd_des;  
+
 }
 
 void Tracking_Controller::publishTrackingInfo()
@@ -509,6 +536,9 @@ void Tracking_Controller::standup_ctrl_enter()
     {
         init_joint_pos[leg] = _legController->datas[leg].q;
     }
+    for (int fly = 0; fly < 2; fly++){
+        init_jointfly_pos[fly] = _flyController->datas[fly].q;
+    }
     in_standup = true;
 }
 
@@ -533,6 +563,12 @@ void Tracking_Controller::standup_ctrl_run()
         _legController->commands[leg].qDes = progress * qDes + (1. - progress) * init_joint_pos[leg];
         _legController->commands[leg].kpJoint = Kp;
         _legController->commands[leg].kdJoint = Kd;
+    }
+    
+    for (int fly = 0; fly < 2; fly++){
+        _flyController->commands[fly].qDes = progress * qDes[0] + (1. - progress) * init_jointfly_pos[fly];
+        _flyController->commands[fly].kpJoint = Kp(0,0);
+        _flyController->commands[fly].kdJoint = Kd(0,0);
     }
     iter_standup++;
 }

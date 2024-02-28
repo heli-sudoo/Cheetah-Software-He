@@ -61,17 +61,37 @@ MHPC_LLController::MHPC_LLController() :
         stanceTimes[foot] = 0;
         stanceTimesRemain[foot] = 0;
     }
+
+    // Creating the socket
+    sockfd = socket(AF_INET, SOCK_DGRAM, 0);
+    if (sockfd < 0) {
+        std::cerr << "Error opening socket" << std::endl;
+    }else { 
+        std::printf("\n Socket made");
+    }
+
+    // Define server address
+    memset(&serverAddr, 0, sizeof(serverAddr));
+    serverAddr.sin_family = AF_INET;
+    serverAddr.sin_port = htons(port); //
+    // serverAddr.sin_addr.s_addr = INADDR_ANY; 
+    serverAddr.sin_addr.s_addr = inet_addr("192.168.1.100");
+    addr_size = sizeof(serverAddr); 
+
 }
 void MHPC_LLController::initializeController()
 {
     mpc_cmds_lcm.subscribe("MHPC_COMMAND", &MHPC_LLController::handleMPCCommand, this);
     mpcLCMthread = std::thread(&MHPC_LLController::handleMPCLCMthread, this);
+    
 
     iter = 0;
     mpc_time = 0;
     iter_loco = 0;
     iter_between_mpc_update = 0;
     nsteps_between_mpc_update = 10;
+
+    udp_data_sent.setZero(); 
 
     yaw_flip_plus_times = 0;
     yaw_flip_mins_times = 0;
@@ -159,6 +179,9 @@ void MHPC_LLController::runController()
     _legController->_maxTorque = 150;
     _legController->_legsEnabled = true;
 
+    _flyController->_maxTorque = 7.5;
+    _flyController->_flysEnabled = true; 
+
     switch (desired_command_mode)
     {
     case CONTROL_MODE::locomotion:
@@ -195,6 +218,8 @@ void MHPC_LLController::locomotion_ctrl()
 {
     Mat3<float> KpMat_joint = userParameters.Kp_joint.cast<float>().asDiagonal();
     Mat3<float> KdMat_joint = userParameters.Kd_joint.cast<float>().asDiagonal();
+
+    bool use_fly_wheels = static_cast<bool>(userParameters.use_fly_wheels); 
     
     updateStateEstimate();        
     
@@ -206,7 +231,7 @@ void MHPC_LLController::locomotion_ctrl()
 
     applyVelocityDisturbance();
 
-    Vec12<float> tau_ff(12);
+    Vec14<float> tau_ff(14);
     tau_ff = mpc_solution.torque;
 
     // Print desired GRFs with negative normal forces
@@ -224,7 +249,7 @@ void MHPC_LLController::locomotion_ctrl()
     if ((int)userParameters.WBC == 1)
     {        
         const auto& K_mpc = mpc_solution.K;
-        tau_ff += K_mpc.rightCols<34>() * (x_se - x_des).tail<34>();        
+        tau_ff += K_mpc.rightCols<34 + 4 >() * (x_se - x_des).tail<34 + 4>();        
     }
 
     // Value-Based WBC 
@@ -234,12 +259,12 @@ void MHPC_LLController::locomotion_ctrl()
         Qu_mpc.setZero();
         Quu_mpc = mpc_solution.Quu;
         Qu_mpc -= Quu_mpc * tau_ff;
-        Qu_mpc += mpc_solution.Qux.rightCols(34)*(x_se - x_des).tail(34);
+        Qu_mpc += mpc_solution.Qux.rightCols(34 +4)*(x_se - x_des).tail(34 + 4);
 
         // prepare other information for VWBC update
-        Vec18<float> qMeas = x_se.head<18>();            // measured generalized joint
-        Vec18<float> vMeas = x_se.tail<18>();            // measured generalized vel
-        Vec18<float> qDes, vDes, qddDes;
+        Vec20<float> qMeas = x_se.head<20>();            // measured generalized joint
+        Vec20<float> vMeas = x_se.tail<20>();            // measured generalized vel
+        Vec20<float> qDes, vDes, qddDes;
         qDes << mpc_solution.pos, mpc_solution.eul, qJ_des;
         vDes << mpc_solution.vWorld, mpc_solution.eulrate, qJd_des;       
 
@@ -263,12 +288,12 @@ void MHPC_LLController::locomotion_ctrl()
         {
             // get a solution
             wbc_.getSolution(tau_ff, qddDes);
-            qJd_des +=  qddDes.tail<12>()* _controlParameters->controller_dt;        
+            qJd_des +=  qddDes.tail<14>()* _controlParameters->controller_dt;        
             qJ_des += qJ_des * _controlParameters->controller_dt;
         }else
         {
             const auto& K_mpc = mpc_solution.K;
-            tau_ff += K_mpc.rightCols<34>() * (x_se - x_des).tail<34>();   
+            tau_ff += K_mpc.rightCols<34 + 4 >() * (x_se - x_des).tail<34 + 4>();   
         }        
         
         if (userParameters.vwbc_info_lcm > 0.1)
@@ -302,6 +327,43 @@ void MHPC_LLController::locomotion_ctrl()
         _legController->commands[leg].kdJoint = KdMat_joint;
         }                    
     }
+
+    for (int fly = 0; fly < 2; fly++){
+
+        float tau_ff_fly = 0.0f;
+        float qDes_fly   = 0.0f;
+        float qdDes_fly   = 0.0f;
+
+        float Kp_fly   = 0.0f ;
+        float Kd_fly   = 0.0f ;
+        
+        
+        if (use_fly_wheels){
+            const auto& tau_ff_fly = tau_ff[12 + fly]; 
+            const auto& qDes_fly   = qJ_des[12 + fly]; 
+            const auto& qdDes_fly  = qJd_des[12 + fly]; 
+            float Kp_fly   = KpMat_joint(0,0); 
+            float Kd_fly   = KdMat_joint(0,0);
+          
+        }
+
+        _flyController->commands[fly].tauFeedForward = tau_ff_fly; 
+
+        _flyController->commands[fly].qDes = qDes_fly; 
+
+        _flyController->commands[fly].qdDes = qdDes_fly;
+
+        _flyController->commands[fly].kpJoint = Kp_fly;
+        _flyController->commands[fly].kdJoint = Kd_fly; 
+
+    }
+
+
+    udp_data_sent << qJ_des.tail<2>()[0], qJ_des.tail<2>()[1],
+                    qJd_des.tail<2>()[0], qJd_des.tail<2>()[1],
+                    tau_ff.tail<2>()[0], tau_ff.tail<2>()[1];
+
+    // updateMPC_UDP(); 
     
     iter_loco++;
     mpc_time = iter_loco * _controlParameters->controller_dt; // where we are since MPC starts
@@ -342,10 +404,12 @@ void MHPC_LLController::updateStateEstimate()
     eulrate_se = omegaBodyToEulrate(eul_se, se.omegaBody);
 
     const auto& legdatas = _legController->datas;
-    qJ_se << legdatas[1].q, legdatas[0].q, legdatas[3].q, legdatas[2].q;
-    qJd_se << legdatas[1].qd, legdatas[0].qd, legdatas[3].qd, legdatas[2].qd;
-    // qJ_se.setZero();
-    // qJd_se.setZero();
+    qJ_se.head<12>()  << legdatas[1].q, legdatas[0].q, legdatas[3].q, legdatas[2].q;
+    qJd_se.head<12>() << legdatas[1].qd, legdatas[0].qd, legdatas[3].qd, legdatas[2].qd;
+
+    const auto& flydatas = _flyController->datas; 
+    qJ_se.tail<2>() << flydatas[0].q, flydatas[1].q;
+    qJd_se.tail<2>() << flydatas[0].qd, flydatas[1].qd;
 
     x_se << se.position, eul_se, qJ_se, se.vWorld, eulrate_se, qJd_se;
 }
@@ -452,7 +516,7 @@ void MHPC_LLController::updateMPCCommand()
         // estimate desired qdd
         qdd_des_.head<3>() = (mpc_sol_next.vWorld - mpc_sol_curr.vWorld)/dt_mpc;
         qdd_des_.segment<3>(3) = (mpc_sol_next.eulrate - mpc_sol_curr.eulrate)/dt_mpc;
-        qdd_des_.tail<12>() = (mpc_sol_next.qJd - mpc_sol_curr.qJd)/dt_mpc;
+        qdd_des_.tail<14>() = (mpc_sol_next.qJd - mpc_sol_curr.qJd)/dt_mpc;
 
     }   
     if (!find_a_solution)
@@ -472,10 +536,58 @@ void MHPC_LLController::updateMPCCommand()
     qJ_des = mpc_solution.qJ;
     qJd_des = mpc_solution.qJd;        
 
-    x_des << pos_des, eul_des, qJ_des, vWorld_des, eulrate_des, qJd_des;             
-    
+    x_des << pos_des, eul_des, qJ_des, vWorld_des, eulrate_des, qJd_des;    
+
+
     mpc_cmd_mutex.unlock();
 }
+
+void MHPC_LLController::updateMPC_UDP()
+{
+    // mpc_cmd_mutex.lock();
+    //     // udp_data_sent[0] =  mpc_solution.qJ.tail<2>()[0];
+    //     // udp_data_sent[1] =  mpc_solution.qJ.tail<2>()[1];
+    //     // udp_data_sent[2] =  mpc_solution.qJ.tail<2>()[0];
+    //     // udp_data_sent[3] =  mpc_solution.qJ.tail<2>()[1];
+        
+    //     udp_data_sent[0] = qJ_des.tail<2>()[0]; //q1
+    //     udp_data_sent[1] = qJ_des.tail<2>()[1]; //q2
+
+    //     udp_data_sent[2] = qJd_des.tail<2>()[0]; //qd1
+    //     udp_data_sent[3] = qJd_des.tail<2>()[1]; //qd2
+
+    //     udp_data_sent[4] = _flyController->commands[0].tauFeedForward; //tau1
+    //     udp_data_sent[5] = _flyController->commands[1].tauFeedForward; //tau2
+
+    // mpc_cmd_mutex.unlock();
+
+    // int n = sendto(sockfd, &x, sizeof x, MSG_CONFIRM, (struct sockaddr*)&serverAddr, sizeof(serverAddr));
+
+    // // while (true){
+    //     //in send loop
+    // sendStatus = sendto(sockfd, &udp_data_sent, sizeof udp_data_sent, MSG_CONFIRM, (struct sockaddr*)&serverAddr, sizeof(serverAddr));
+    // if (sendStatus < 0)
+    // {
+    //     std::cerr << "Error sending data over udp socket" << std::endl;
+    // }
+    
+
+    // float udp_recv[2];
+    // struct sockaddr_in clientAddr;
+    // socklen_t clientAddrLen = sizeof(clientAddr);
+    // ssize_t recvLen = recvfrom(sockfd, udp_recv, sizeof(udp_recv), 0, 
+    //                         (struct sockaddr *)&clientAddr, &clientAddrLen);
+
+    // recvStatus = recv(sockfd, udp_data_recv, sizeof(udp_data_recv), 0);
+    printf("\nsending");
+    // std::cout << "\n  udp_data_recv" << udp_data_recv;  
+    // }
+    // Close the socket
+    // close(sockfd);
+
+}
+
+
 
 void MHPC_LLController::applyVelocityDisturbance()
 {
@@ -537,6 +649,9 @@ void MHPC_LLController::standup_ctrl_enter()
     {
         init_joint_pos[leg] = _legController->datas[leg].q;
     }
+    for (int fly = 0; fly < 2; fly++){
+        init_jointfly_pos[fly] = _flyController->datas[fly].q;
+    }
     in_standup = true;
 }
 
@@ -561,6 +676,11 @@ void MHPC_LLController::standup_ctrl_run()
         _legController->commands[leg].qDes = progress * qDes + (1. - progress) * init_joint_pos[leg];
         _legController->commands[leg].kpJoint = Kp;
         _legController->commands[leg].kdJoint = Kd;
+    }
+    for (int fly = 0; fly < 2; fly++){
+        _flyController->commands[fly].qDes = progress * qDes[0] + (1. - progress) * init_jointfly_pos[fly];
+        _flyController->commands[fly].kpJoint = Kp(0,0);
+        _flyController->commands[fly].kdJoint = Kd(0,0);
     }
     iter_standup++;
 }

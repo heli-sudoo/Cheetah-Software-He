@@ -32,12 +32,12 @@ struct DesiredStateData {
   void zero();
 
   // Instantaneous desired state command
-  Vec12<T> stateDes;
+  Vec14<T> stateDes;
 
-  Vec12<T> pre_stateDes;
+  Vec14<T> pre_stateDes;
 
   // Desired future state trajectory (for up to 10 timestep MPC)
-  Eigen::Matrix<T, 12, 10> stateTrajDes;
+  Eigen::Matrix<T, 14, 10> stateTrajDes;
 };
 
 /**
@@ -108,7 +108,7 @@ private:
 
 
   // Dynamics matrix for discrete time approximation
-  Mat12<T> A;
+  Mat14<T> A;
 
   // Control loop timestep change
   T dt;

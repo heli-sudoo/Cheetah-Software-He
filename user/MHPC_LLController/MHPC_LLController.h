@@ -14,29 +14,39 @@
 #include "extVelocity_lcmt.hpp"
 #include "vwbc_info_lcmt.hpp"
 
+// For UDP Comms 
+#include <sys/socket.h>
+#include <netinet/in.h>
+#include <arpa/inet.h>
+#include <unistd.h>
+#include <string.h>
+#include <iostream>
+
+
+
 struct MPCSolution
 {
     // Leg order and Joint convention follow the Pinocchio's parsing of MC URDF file
     // i.e., [FR, FL, HR, HL], hip and knee have reversed rotations compared to Cheetah Software
     float time;
     // Vec12<float> torque;
-    Vec12<float> torque;
+    Vec14<float> torque;
     Vec3<float> pos;
     Vec3<float> eul;
     Vec3<float> vWorld;
     Vec3<float> eulrate;
-    Vec12<float> qJ;
-    Vec12<float> qJd;
+    Vec14<float> qJ;
+    Vec14<float> qJd;
     Vec12<float> GRF;
     Vec4<int> contactStatus;
     Vec4<float> statusTimes;
-    Eigen::Matrix<float, 12, 36> K;
+    Eigen::Matrix<float, 14, 40> K;
 
     // Vec12<float> Qu;
     // Mat12<float> Quu;
-    Vec12<float> Qu;
-    Mat12<float> Quu;
-    Eigen::Matrix<float, 12, 36> Qux;
+    Vec14<float> Qu;
+    Mat14<float> Quu;
+    Eigen::Matrix<float, 14, 40> Qux;
 };
 
 inline void interpolateMPCSolution(const MPCSolution& s0, const MPCSolution& s1, float t_rel, MPCSolution& st)
@@ -64,6 +74,10 @@ public:
     {
         return &userParameters;
     }   
+    ~ MHPC_LLController()
+    {
+        close(sockfd);
+    }
 
     void standup_ctrl();
     void standup_ctrl_enter();
@@ -77,6 +91,15 @@ public:
     void updateStateEstimate();
     void updateMPCCommand();
     void updateContactEstimate();
+
+    // void updateMPC_UDP(const Vec2<float>tau, const Vec2<float> qdes);
+
+
+    void updateMPC_UDP();
+
+    // thread to send data over udp continously
+    std::thread udp_thread = std::thread(&MHPC_LLController::updateMPC_UDP, this);
+
 
     void handleMPCCommand(const lcm::ReceiveBuffer *rbuf, const std::string &chan,
                           const MHPC_Command_lcmt *msg);
@@ -107,22 +130,22 @@ public:
     // Desried states, control etc
     // Leg order and Joint convention follow the Pinocchio's parsing of MC URDF file
     // i.e., [FR, FL, HR, HL], hip and knee have reversed rotations compared to Cheetah Software    
-    Vec12<float> qJ_des;
-    Vec12<float> qJd_des;   
-    Vec18<float> qdd_des_;
-    Eigen::Vector<float, 36> x_des;
+    Vec14<float> qJ_des;
+    Vec14<float> qJd_des;   
+    Vec20<float> qdd_des_;
+    Eigen::Vector<float, 40> x_des;
 
     // Q matrices and feedback gain
-    Vec12<float> Qu_mpc;
-    Mat12<float> Quu_mpc;    
+    Vec14<float> Qu_mpc;
+    Mat14<float> Quu_mpc;    
 
     // State estimates
     // Have the same convention as the desired states
     Vec3<float> eul_se;
     Vec3<float> eulrate_se;
-    Vec12<float> qJ_se;
-    Vec12<float> qJd_se;
-    Eigen::Vector<float, 36> x_se;
+    Vec14<float> qJ_se;
+    Vec14<float> qJd_se;
+    Eigen::Vector<float, 40> x_se;
     
     // Swing Control
     bool firstStance[4];
@@ -152,6 +175,7 @@ public:
 private:
     Vec24<float> mpc_control;
     Vec3<float> init_joint_pos[4];
+    float init_jointfly_pos[2];
     bool in_standup;
     int iter_standup;
     int desired_command_mode;
@@ -169,6 +193,18 @@ private:
     float raw_roll_pre;
     float raw_roll_cur;
     float roll;
+
+    //udp setup
+    int port = 11223; //port 
+    int sendStatus;
+    int recvStatus;
+    int sockfd = -1;
+    struct sockaddr_in serverAddr;
+    socklen_t addr_size; 
+    Vec6<float> udp_data_sent; // q_fly qd_fly tau_fly
+    // float udp_data_recv[2]; // qd_fly
+    float udp_data_recv[1024];
+
 };
 
 #endif

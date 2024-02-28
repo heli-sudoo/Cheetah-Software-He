@@ -16,6 +16,7 @@
 #include "SimUtilities/ImuSimulator.h"
 #include "SimUtilities/SimulatorMessage.h"
 #include "SimUtilities/SpineBoard.h"
+#include "SimUtilities/FlyBoard.h"
 #include "SimUtilities/ti_boardcontrol.h"
 #include "Utilities/SharedMemory.h"
 #include "Utilities/Timer.h"
@@ -137,10 +138,19 @@ class Simulation {
   DynamicsSimulator<double>* _simulator = nullptr;
   DynamicsSimulator<double>* _robotDataSimulator = nullptr;
   std::vector<ActuatorModel<double>> _actuatorModels;
+
   SpiCommand _spiCommand;
   SpiData _spiData;
+
+  FlyCommand _flyCommand;
+  FlyData _flyData;
+
   SpineBoard _spineBoards[4];
   TI_BoardControl _tiBoards[4];
+
+  FlyBoard _flyBoards[2];
+  //DO YOU NEED TI BOARD CTRL FOR FLYWHEELS
+
   RobotType _robot;
   lcm::LCM* _lcm = nullptr;
 
