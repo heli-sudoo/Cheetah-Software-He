@@ -140,6 +140,7 @@ Simulation::Simulation(RobotType robot, Graphics3D* window,
   // Cheetah lies on the ground
   //x0.bodyPosition[2] = -0.45;
   x0.bodyPosition[2] = 0.05;
+  // x0.bodyPosition[2] = 1; 
   x0.q[0] = -0.7;
   x0.q[1] = 1.;
   x0.q[2] = 2.715;
@@ -366,8 +367,8 @@ void Simulation::step(double dt, double dtLowLevelControl,
     //flywheels
     for (int fly = 0; fly < 2; fly++){
       _tau[12+fly] = _actuatorModels[3].getTorque(_flyBoards[fly].torque_out,_simulator->getState().qd[12 + fly]);   
-      if (_tau[12+fly] > 3.0){
-        printf("\n  _tau[12+fly] %f", _tau[12+fly]);
+      if (_tau[12+fly] > 7.5){
+        printf("\n  _tau[12+fly] for fly %i %f",fly, _tau[12+fly]);
       }
     }
   } else if (_robot == RobotType::CHEETAH_3) {
@@ -567,6 +568,13 @@ void Simulation::buildLcmMessage() {
       _simLCM.p_foot[leg][joint] = _simulator->getModel()._pGC.at(gcID)[joint];
       _simLCM.f_foot[leg][joint] = _simulator->getContactForce(gcID)[joint];
     }
+  }
+  for (size_t fly = 0 ; fly < 2; fly++)
+  {
+      _simLCM.qfly[fly] = state.q[12+fly];
+      _simLCM.qdfly[fly] = state.qd[12+fly];
+      _simLCM.tau_fly[fly] = _tau[12+fly];
+
   }
 }
 

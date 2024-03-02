@@ -158,7 +158,7 @@ void Tracking_Controller::runController()
     _legController->_maxTorque = 150;
     _legController->_legsEnabled = true;
 
-    _flyController->_maxTorque = 7.5; 
+    _flyController->_maxTorque = 2.0 * 7.5; 
     _flyController->_flysEnabled = true; 
 
     switch (desired_command_mode)

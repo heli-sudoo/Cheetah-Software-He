@@ -130,6 +130,8 @@ bool Quadruped<T>::buildModel(FloatingBaseModel<T>& model) {
   
 
   Vec3<T> g(0, 0, -9.81);
+  // Vec3<T> g(0, 0, 0);
+
   model.setGravity(g);
 
   return true;
@@ -263,8 +265,8 @@ std::vector<ActuatorModel<T>> Quadruped<T>::buildActuatorModels() {
                       _jointDamping, _jointDryFriction, _motorTauMax);
   models.emplace_back(_kneeGearRatio, _motorKT, _motorR, _batteryV,
                       _jointDamping, _jointDryFriction, _motorTauMax);
-  models.emplace_back(_flywheelRatio=21, _motorKT =.0335 , _motorR = 1.03, _batteryV,
-                      _jointDamping, _jointDryFriction, _motorTauMax=0.780f);                      
+  models.emplace_back(_flywheelRatio=10.5, _motorKT =.0335 , _motorR, _batteryV,
+                      _jointDamping, _jointDryFriction, _motorTauMax=2.0 * 7.50f);                      
   return models;
 }
 

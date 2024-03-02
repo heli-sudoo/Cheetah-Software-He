@@ -120,6 +120,19 @@ using Mat4 = typename Eigen::Matrix<T, 4, 4>;
 template <typename T>
 using MassProperties = typename Eigen::Matrix<T, 10, 1>;
 
+template <typename T >
+Mat3<T> InertiaSkewFn(const T mass, const Vec3<T>& rCoM ) {
+    Mat3<T> inertiaSkewMat = mass * (rCoM.transpose() * rCoM * Mat3<T>::Identity() - rCoM * rCoM.transpose());
+    return inertiaSkewMat; 
+}
+
+template <typename T>
+Mat3<T> InertiaSkewFn2(const T mass, const Vec3<T>& rCoM) {
+    Mat3<T> rCoM_outer = rCoM * rCoM.transpose(); 
+    Mat3<T> inertiaSkewMat = mass * (Mat3<T>::Identity() - rCoM_outer); // Adjusted formula
+    return inertiaSkewMat;
+}
+
 // Dynamically sized vector
 template <typename T>
 using DVec = typename Eigen::Matrix<T, Eigen::Dynamic, 1>;

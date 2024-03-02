@@ -243,7 +243,7 @@ size_t DrawList::addMiniCheetah(Vec4<float> color, bool useOld, bool canHide) {
     // add flywheel on the y axis 
   _objectMap.push_back(_flyWheelLoadIndex);
   _modelOffsets.push_back(flywheelYOffset);
-  _canBeHidden.push_back(true);
+  _canBeHidden.push_back(canHide);
   _kinematicXform.push_back(eye);
   _instanceColor.push_back(flywheelColor);
   _nTotal++;  

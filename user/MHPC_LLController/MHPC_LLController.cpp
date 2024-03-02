@@ -179,7 +179,7 @@ void MHPC_LLController::runController()
     _legController->_maxTorque = 150;
     _legController->_legsEnabled = true;
 
-    _flyController->_maxTorque = 7.5;
+    _flyController->_maxTorque = 2.0 *7.5;
     _flyController->_flysEnabled = true; 
 
     switch (desired_command_mode)
@@ -330,31 +330,32 @@ void MHPC_LLController::locomotion_ctrl()
 
     for (int fly = 0; fly < 2; fly++){
 
-        float tau_ff_fly = 0.0f;
-        float qDes_fly   = 0.0f;
-        float qdDes_fly   = 0.0f;
-
-        float Kp_fly   = 0.0f ;
-        float Kd_fly   = 0.0f ;
-        
+           
         
         if (use_fly_wheels){
-            const auto& tau_ff_fly = tau_ff[12 + fly]; 
-            const auto& qDes_fly   = qJ_des[12 + fly]; 
-            const auto& qdDes_fly  = qJd_des[12 + fly]; 
-            float Kp_fly   = KpMat_joint(0,0); 
-            float Kd_fly   = KdMat_joint(0,0);
           
+            const auto& tau_ff_fly = tau_ff.tail<2>(); 
+            const auto& qDes_fly   = qJ_des.tail<2>(); 
+            const auto& qdDes_fly  = qJd_des.tail<2>(); 
+
+            _flyController->commands[fly].tauFeedForward = tau_ff_fly[fly];
+
+            _flyController->commands[fly].qDes = qDes_fly[fly];  
+
+            _flyController->commands[fly].qdDes = qdDes_fly[fly]; 
+
+            _flyController->commands[fly].kpJoint =  KpMat_joint(0,0); 
+            _flyController->commands[fly].kdJoint = KdMat_joint(0,0); 
         }
+        else{
+            printf("\n Flywheel disabled"); 
+            _flyController->commands[fly].tauFeedForward = 0.0f; 
+            _flyController->commands[fly].qDes = 0.0f; 
+            _flyController->commands[fly].qdDes = 0.0f;
+            _flyController->commands[fly].kpJoint = 0.0f;
+            _flyController->commands[fly].kdJoint = 0.0f; 
 
-        _flyController->commands[fly].tauFeedForward = tau_ff_fly; 
-
-        _flyController->commands[fly].qDes = qDes_fly; 
-
-        _flyController->commands[fly].qdDes = qdDes_fly;
-
-        _flyController->commands[fly].kpJoint = Kp_fly;
-        _flyController->commands[fly].kdJoint = Kd_fly; 
+        }
 
     }
 

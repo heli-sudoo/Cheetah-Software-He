@@ -129,6 +129,8 @@ void FlyController<T>::updateCommand(FlyCommand* flyCommand) {
     //Nganga  TAG might add torque limits here
     flyCommand->tau_fly_ff[fly] = commands[fly].tauFeedForward;
 
+    // std::cout <<  "\n  commands[fly].tauFeedForward  " <<  commands[fly].tauFeedForward   ;
+
 
     // joint space pd
     // joint space PD
@@ -208,7 +210,7 @@ void FlyController<T>::setLcm(fly_control_data_lcmt *lcmData, fly_control_comman
 
 
       lcmCommand->tau_ff[fly] = commands[fly].tauFeedForward;
-
+    
       lcmCommand->q_des[fly] = commands[fly].qDes;
       lcmCommand->qd_des[fly] =  commands[fly].qdDes;
 

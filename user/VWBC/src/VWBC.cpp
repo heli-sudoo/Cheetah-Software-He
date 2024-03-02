@@ -268,9 +268,9 @@ namespace quadloco
         A.setZero();
         A.middleCols(nv, numActJoints_).setIdentity();
         lb_A.setConstant(-torqueLimits_);
-        // lb_A.tail(2) << -100.0, -100.0; 
+        lb_A.tail(2) << -2.0*7.5, -2.0*7.5; 
         ub_A.setConstant(torqueLimits_);
-        // ub_A.tail(2) << 100.0, 100.0; 
+        ub_A.tail(2) << 2.0*7.5,2.0*7.5;
 
 
         return {A, lb_A, ub_A};
@@ -400,6 +400,11 @@ namespace quadloco
                 g.segment(6 + 3 * l, 3) = -weightStance_ * qddDes_.segment(6 + 3 * l, 3);
             }
         }
+        // for (int l = 0; l < 2; l++)
+        // {
+
+        // }
+        //Nganga Tag Need to add flywheel here
 
         return {H, g};
     }

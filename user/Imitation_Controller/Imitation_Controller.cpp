@@ -407,6 +407,7 @@ void Imitation_Controller::standup_ctrl_enter()
     {
         init_joint_pos[leg] = _legController->datas[leg].q;
     }
+    fori
     in_standup = true;
 }
 

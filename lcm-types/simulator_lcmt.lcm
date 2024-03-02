@@ -12,6 +12,9 @@ struct simulator_lcmt {
    double v[3];
    double vbd[3];
    double q[4][3];
+   double qfly[2];
+   double qdfly[2];
+   double tau_fly[2];
    double qd[4][3];
    double qdd[4][3];
    double tau[4][3];

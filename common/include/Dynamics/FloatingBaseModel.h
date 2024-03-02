@@ -76,6 +76,7 @@ class FloatingBaseModel {
    * Initialize a floating base model with default gravity
    */
   FloatingBaseModel() : _gravity(0, 0, -9.81) {}
+  // FloatingBaseModel() : _gravity(0, 0, 0) {}
   ~FloatingBaseModel() {}
 
   void addBase(const SpatialInertia<T>& inertia);

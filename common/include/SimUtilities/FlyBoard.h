@@ -56,7 +56,7 @@ class FlyBoard {
  private:
   // float side_sign;
   s32 board_num;
-  const float max_torque = {7.5f};
+  const float max_torque = {2.0 * 7.5f};
   const float wimp_torque = {6.f}; 
   const float disabled_torque = {0.f};
   const float q_limit_p = {1.5f};
