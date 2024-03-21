@@ -65,9 +65,9 @@ MHPC_LLController::MHPC_LLController() :
     // Creating the socket
     sockfd = socket(AF_INET, SOCK_DGRAM, 0);
     if (sockfd < 0) {
-        std::cerr << "Error opening socket" << std::endl;
+        std::cerr << "\nError opening socket\n" << std::endl;
     }else { 
-        std::printf("\n Socket made");
+        std::printf("\n Socket made\n");
     }
 
     // Define server address
@@ -75,8 +75,8 @@ MHPC_LLController::MHPC_LLController() :
     serverAddr.sin_family = AF_INET;
     serverAddr.sin_port = htons(port); //
     // serverAddr.sin_addr.s_addr = INADDR_ANY; 
-    serverAddr.sin_addr.s_addr = inet_addr("192.168.1.100");
-    addr_size = sizeof(serverAddr); 
+    serverAddr.sin_addr.s_addr = inet_addr("10.0.0.70");
+    socklen_t addr_size = sizeof(serverAddr); 
 
 }
 void MHPC_LLController::initializeController()
@@ -91,7 +91,14 @@ void MHPC_LLController::initializeController()
     iter_between_mpc_update = 0;
     nsteps_between_mpc_update = 10;
 
-    udp_data_sent.setZero(); 
+    for (int i= 0; i < 6 ; i++)
+    {
+       udp_data_sent[i] = 0.0; 
+    }
+    for (int i=0; i < 2; i++)
+    {
+        udp_data_recv[i] = 0.0;
+    }
 
     yaw_flip_plus_times = 0;
     yaw_flip_mins_times = 0;
@@ -249,7 +256,7 @@ void MHPC_LLController::locomotion_ctrl()
     if ((int)userParameters.WBC == 1)
     {        
         const auto& K_mpc = mpc_solution.K;
-        tau_ff += K_mpc.rightCols<34 + 4 >() * (x_se - x_des).tail<34 + 4>();        
+        tau_ff += K_mpc.rightCols<34 >() * (x_se - x_des).tail<34 >(); 
     }
 
     // Value-Based WBC 
@@ -311,8 +318,8 @@ void MHPC_LLController::locomotion_ctrl()
     for (int leg(0); leg < 4; leg++)
     {              
         const auto& tau_ff_leg = tau_ff.segment<3>(3*LegIDMap[leg]);
-        const auto& qDes_leg = qJ_des.segment<3>(3*LegIDMap[leg]);
-        const auto& qdDes_leg = qJd_des.segment<3>(3*LegIDMap[leg]);        
+        const auto& qDes_leg   = qJ_des.segment<3>(3*LegIDMap[leg]);
+        const auto& qdDes_leg  = qJd_des.segment<3>(3*LegIDMap[leg]);        
 
         _legController->commands[leg].tauFeedForward << tau_ff_leg[0], tau_ff_leg.tail<2>();
         _legController->commands[leg].qDes << qDes_leg[0], qDes_leg.tail<2>();
@@ -328,24 +335,25 @@ void MHPC_LLController::locomotion_ctrl()
         }                    
     }
 
-    for (int fly = 0; fly < 2; fly++){
-
-           
-        
+    for (int fly = 0; fly < 2; fly++){ 
         if (use_fly_wheels){
           
             const auto& tau_ff_fly = tau_ff.tail<2>(); 
             const auto& qDes_fly   = qJ_des.tail<2>(); 
             const auto& qdDes_fly  = qJd_des.tail<2>(); 
-
+            
             _flyController->commands[fly].tauFeedForward = tau_ff_fly[fly];
 
             _flyController->commands[fly].qDes = qDes_fly[fly];  
 
             _flyController->commands[fly].qdDes = qdDes_fly[fly]; 
 
-            _flyController->commands[fly].kpJoint =  KpMat_joint(0,0); 
+            _flyController->commands[fly].kpJoint = KpMat_joint(0,0); 
             _flyController->commands[fly].kdJoint = KdMat_joint(0,0); 
+                
+            udp_data_recv_mutex.lock(); 
+            _flyController->commands[fly].tauAct = udp_data_recv[fly];
+            udp_data_recv_mutex.unlock();
         }
         else{
             printf("\n Flywheel disabled"); 
@@ -354,17 +362,24 @@ void MHPC_LLController::locomotion_ctrl()
             _flyController->commands[fly].qdDes = 0.0f;
             _flyController->commands[fly].kpJoint = 0.0f;
             _flyController->commands[fly].kdJoint = 0.0f; 
+            udp_data_recv_mutex.lock(); 
+            _flyController->commands[fly].tauAct = udp_data_recv[fly];
+            udp_data_recv_mutex.unlock();
 
         }
 
     }
 
+    //q for fly1 and fly2
+    udp_data_sent[0] = qJ_des.tail<2>()[0];
+    udp_data_sent[1] = qJ_des.tail<2>()[1];
+    //qd for fly1 and fly2
+    udp_data_sent[2] = qJd_des.tail<2>()[0];
+    udp_data_sent[3] = qJd_des.tail<2>()[1]; 
+    //tau for fly1 and fly2
+    udp_data_sent[4] = tau_ff.tail<2>()[0];
+    udp_data_sent[5] = tau_ff.tail<2>()[1];
 
-    udp_data_sent << qJ_des.tail<2>()[0], qJ_des.tail<2>()[1],
-                    qJd_des.tail<2>()[0], qJd_des.tail<2>()[1],
-                    tau_ff.tail<2>()[0], tau_ff.tail<2>()[1];
-
-    // updateMPC_UDP(); 
     
     iter_loco++;
     mpc_time = iter_loco * _controlParameters->controller_dt; // where we are since MPC starts
@@ -545,47 +560,21 @@ void MHPC_LLController::updateMPCCommand()
 
 void MHPC_LLController::updateMPC_UDP()
 {
-    // mpc_cmd_mutex.lock();
-    //     // udp_data_sent[0] =  mpc_solution.qJ.tail<2>()[0];
-    //     // udp_data_sent[1] =  mpc_solution.qJ.tail<2>()[1];
-    //     // udp_data_sent[2] =  mpc_solution.qJ.tail<2>()[0];
-    //     // udp_data_sent[3] =  mpc_solution.qJ.tail<2>()[1];
-        
-    //     udp_data_sent[0] = qJ_des.tail<2>()[0]; //q1
-    //     udp_data_sent[1] = qJ_des.tail<2>()[1]; //q2
-
-    //     udp_data_sent[2] = qJd_des.tail<2>()[0]; //qd1
-    //     udp_data_sent[3] = qJd_des.tail<2>()[1]; //qd2
-
-    //     udp_data_sent[4] = _flyController->commands[0].tauFeedForward; //tau1
-    //     udp_data_sent[5] = _flyController->commands[1].tauFeedForward; //tau2
-
-    // mpc_cmd_mutex.unlock();
-
-    // int n = sendto(sockfd, &x, sizeof x, MSG_CONFIRM, (struct sockaddr*)&serverAddr, sizeof(serverAddr));
-
-    // // while (true){
-    //     //in send loop
-    // sendStatus = sendto(sockfd, &udp_data_sent, sizeof udp_data_sent, MSG_CONFIRM, (struct sockaddr*)&serverAddr, sizeof(serverAddr));
-    // if (sendStatus < 0)
-    // {
-    //     std::cerr << "Error sending data over udp socket" << std::endl;
-    // }
-    
-
-    // float udp_recv[2];
-    // struct sockaddr_in clientAddr;
-    // socklen_t clientAddrLen = sizeof(clientAddr);
-    // ssize_t recvLen = recvfrom(sockfd, udp_recv, sizeof(udp_recv), 0, 
-    //                         (struct sockaddr *)&clientAddr, &clientAddrLen);
-
-    // recvStatus = recv(sockfd, udp_data_recv, sizeof(udp_data_recv), 0);
-    printf("\nsending");
-    // std::cout << "\n  udp_data_recv" << udp_data_recv;  
-    // }
-    // Close the socket
-    // close(sockfd);
-
+    while (true){
+        sendStatus = sendto(sockfd, &udp_data_sent, sizeof udp_data_sent, MSG_CONFIRM, (struct sockaddr*)&serverAddr, sizeof(serverAddr));
+        if (sendStatus < 0)
+        {
+            std::cerr << "Error sending data over udp socket" << std::endl;
+        }
+        // printf("\n Send Status is %i", sendStatus);
+        printf("\n udp_data_sent : %f %f",udp_data_sent[2], udp_data_sent[3]);
+        if (sendStatus > 0)
+        {       
+            recvStatus = recv(sockfd, udp_data_recv, sizeof(udp_data_recv), 0);
+            // printf("\n recv Status is %i", recvStatus);
+            printf("\n udp_data_recv: %f %f",udp_data_recv[0], udp_data_recv[1]);
+        }
+    }
 }
 
 
@@ -682,6 +671,9 @@ void MHPC_LLController::standup_ctrl_run()
         _flyController->commands[fly].qDes = progress * qDes[0] + (1. - progress) * init_jointfly_pos[fly];
         _flyController->commands[fly].kpJoint = Kp(0,0);
         _flyController->commands[fly].kdJoint = Kd(0,0);
+        udp_data_recv_mutex.lock(); 
+        _flyController->commands[fly].tauAct = udp_data_recv[fly];
+        udp_data_recv_mutex.unlock();
     }
     iter_standup++;
 }

@@ -162,6 +162,7 @@ public:
     MHPC_Data_lcmt mpc_data;
     std::mutex mpc_cmd_mutex;
     std::mutex mpc_data_mutex;
+    std::mutex udp_data_recv_mutex;
     std::thread mpcLCMthread;
 
     // WBC
@@ -201,9 +202,8 @@ private:
     int sockfd = -1;
     struct sockaddr_in serverAddr;
     socklen_t addr_size; 
-    Vec6<float> udp_data_sent; // q_fly qd_fly tau_fly
-    // float udp_data_recv[2]; // qd_fly
-    float udp_data_recv[1024];
+    float udp_data_sent[6]; // [q_fly qd_fly tau_fly] for fly1 and fly2 
+    float udp_data_recv[2]; // qd_fly for fly1 and fly2
 
 };
 

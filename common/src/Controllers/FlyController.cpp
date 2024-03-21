@@ -16,7 +16,7 @@
 template <typename T>
 void FlyControllerCommand<T>::zero() {
   tauFeedForward = T();
-  forceFeedForward = T();
+  tauAct = T();
   qDes  =  T();
   qdDes = T();
   kpCartesian = T();
@@ -207,6 +207,8 @@ void FlyController<T>::setLcm(fly_control_data_lcmt *lcmData, fly_control_comman
       lcmData->q[fly] = datas[fly].q;
       lcmData->qd[fly] = datas[fly].qd;
       lcmData->tau_est[fly] = datas[fly].tauEstimate;
+
+      lcmData->tau_act[fly] = commands[fly].tauAct; 
 
 
       lcmCommand->tau_ff[fly] = commands[fly].tauFeedForward;

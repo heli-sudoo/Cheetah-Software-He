@@ -367,9 +367,9 @@ void Simulation::step(double dt, double dtLowLevelControl,
     //flywheels
     for (int fly = 0; fly < 2; fly++){
       _tau[12+fly] = _actuatorModels[3].getTorque(_flyBoards[fly].torque_out,_simulator->getState().qd[12 + fly]);   
-      if (_tau[12+fly] > 7.5){
-        printf("\n  _tau[12+fly] for fly %i %f",fly, _tau[12+fly]);
-      }
+      // if (_tau[12+fly] > 7.5){
+        // printf("\n  _tau[12+fly] for fly %i %f",fly, _tau[12+fly]);
+      // }
     }
   } else if (_robot == RobotType::CHEETAH_3) {
     for (int leg = 0; leg < 4; leg++) {
@@ -514,8 +514,8 @@ void Simulation::highLevelControl() {
     _flyCommand = _sharedMemory().robotToSim.flyCommand; 
     // pretty_print(_spiCommand.q_des_abad, "q des abad", 4);
     if ( std::abs(_flyCommand.qd_des_fly[0]) >= 0.4f  || std::abs(_flyCommand.qd_des_fly[1]) >= 0.4f ) {
-      pretty_print(_flyCommand.q_des_fly, "q_des_fly",2); 
-      pretty_print(_flyCommand.qd_des_fly, "qd_des_fly",2); 
+      std::cout << _flyCommand.qd_des_fly[0] * 9.549 * 21 <<  "qd_des_fly RPM at flywheel 1\n"; //,2); 
+      std::cout << _flyCommand.qd_des_fly[1] * 9.549 * 21 <<  "qd_des_fly RPM at flywheel 2\n"; //,2); 
     }
     // pretty_print(_spiCommand.q_des_hip, "q des hip", 4);
     // pretty_print(_spiCommand.q_des_knee, "q des knee", 4);

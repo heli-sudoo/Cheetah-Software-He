@@ -265,8 +265,8 @@ std::vector<ActuatorModel<T>> Quadruped<T>::buildActuatorModels() {
                       _jointDamping, _jointDryFriction, _motorTauMax);
   models.emplace_back(_kneeGearRatio, _motorKT, _motorR, _batteryV,
                       _jointDamping, _jointDryFriction, _motorTauMax);
-  models.emplace_back(_flywheelRatio=10.5, _motorKT =.0335 , _motorR, _batteryV,
-                      _jointDamping, _jointDryFriction, _motorTauMax=2.0 * 7.50f);                      
+  models.emplace_back(_flywheelRatio=21, _motorKT =0.0335 , _motorR, _batteryV,
+                      _jointDamping, _jointDryFriction, _motorTauMax=0.78f);                      
   return models;
 }
 
