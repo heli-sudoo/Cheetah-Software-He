@@ -1,8 +1,6 @@
 
 find_package(Boost REQUIRED)
-find_library(QPOASES_LIB 
-             NAMES  libqpOASES.a 
-             PATHS $ENV{QPOASES_LIB_PATH})
+find_library(QPOASES_LIB qpOASES)
 
 if(NOT QPOASES_LIB)
   message(FATAL_ERROR "QPOASES library not found")
@@ -25,8 +23,6 @@ if(USE_PINOCCHIO)
 endif(USE_PINOCCHIO)
 
 add_library(vwbc ${sources})     
-
-target_include_directories(vwbc PUBLIC $ENV{QPOASES_INCLUDE})
 
 target_link_libraries(vwbc ${QPOASES_LIB})
 
