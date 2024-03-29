@@ -139,7 +139,7 @@ Simulation::Simulation(RobotType robot, Graphics3D* window,
 
   // Cheetah lies on the ground
   //x0.bodyPosition[2] = -0.45;
-  x0.bodyPosition[2] = 0.05;
+  x0.bodyPosition[2] = 0.05 ;
   // x0.bodyPosition[2] = 1; 
   x0.q[0] = -0.7;
   x0.q[1] = 1.;
