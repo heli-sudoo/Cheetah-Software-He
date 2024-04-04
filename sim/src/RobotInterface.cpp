@@ -52,13 +52,13 @@ RobotInterface::RobotInterface(RobotType robotType, Graphics3D *gfx,
                                                     : buildCheetah3<double>();
   _model = _quadruped.buildModel();
   _simulator = new DynamicsSimulator<double>(_model, false);
-  DVec<double> zero12(12);
-  for (u32 i = 0; i < 12; i++) {
-    zero12[i] = 0.;
+  DVec<double> zero14(14);
+  for (u32 i = 0; i < 14; i++) {
+    zero14[i] = 0.;
   }
 
-  _fwdKinState.q = zero12;
-  _fwdKinState.qd = zero12;
+  _fwdKinState.q = zero14;
+  _fwdKinState.qd = zero14;
 }
 
 void RobotInterface::handleVisualizationData(
@@ -74,7 +74,7 @@ void RobotInterface::handleVisualizationData(
     _fwdKinState.bodyOrientation[i] = msg->quat[i];
   }
 
-  for (int i = 0; i < 12; i++) {
+  for (int i = 0; i < 14; i++) {
     _fwdKinState.q[i] = msg->q[i];
   }
 

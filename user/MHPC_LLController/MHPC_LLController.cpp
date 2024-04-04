@@ -65,9 +65,9 @@ MHPC_LLController::MHPC_LLController() :
     // Creating the socket
     sockfd = socket(AF_INET, SOCK_DGRAM, 0);
     if (sockfd < 0) {
-        std::cerr << "\nError opening socket\n" << std::endl;
+        std::cerr << "\nError opening socket....Trying again \n" << std::endl;
     }else { 
-        std::printf("\n Socket made\n");
+        printf("\n [UDP SOCKET MADE SUCCESSIVELY] \n");
     }
 
     // Define server address
@@ -564,15 +564,15 @@ void MHPC_LLController::updateMPC_UDP()
         sendStatus = sendto(sockfd, &udp_data_sent, sizeof udp_data_sent, MSG_CONFIRM, (struct sockaddr*)&serverAddr, sizeof(serverAddr));
         if (sendStatus < 0)
         {
-            std::cerr << "Error sending data over udp socket" << std::endl;
+            std::cerr << "Error sending data over udp socket, NULL Socket" << std::endl;
         }
         // printf("\n Send Status is %i", sendStatus);
-        printf("\n udp_data_sent : %f %f",udp_data_sent[2], udp_data_sent[3]);
+        // printf("\n udp_data_sent : %f %f",udp_data_sent[2], udp_data_sent[3]);
         if (sendStatus > 0)
         {       
             recvStatus = recv(sockfd, udp_data_recv, sizeof(udp_data_recv), 0);
             // printf("\n recv Status is %i", recvStatus);
-            printf("\n udp_data_recv: %f %f",udp_data_recv[0], udp_data_recv[1]);
+            // printf("\n udp_data_recv: %f %f",udp_data_recv[0], udp_data_recv[1]);
         }
     }
 }

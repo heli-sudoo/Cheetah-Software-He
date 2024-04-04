@@ -47,7 +47,9 @@ void RobotRunner::init() {
 
   // Always initialize the leg controller and state entimator
   _legController = new LegController<float>(_quadruped);
+  printf("\n legController inited");
   _flyController = new FlyController<float>(_quadruped);
+  printf("\n flyController inited");
   _stateEstimator = new StateEstimatorContainer<float>(
       cheaterState, vectorNavData, _legController->datas,
       _flyController->datas,
@@ -165,9 +167,9 @@ void RobotRunner::run() {
         _legController->datas[leg].q[joint];
     }
   }
-  for (int fly = 0; fly < 2; fly++){
-    cheetahMainVisualization->q[12+fly] = _flyController->datas[fly].q; 
-  }
+  // for (int fly = 0; fly < 2; fly++){
+  //   cheetahMainVisualization->q[12+fly] = _flyController->datas[fly].q; 
+  // }
   cheetahMainVisualization->p.setZero();
   cheetahMainVisualization->p = _stateEstimate.position;
   cheetahMainVisualization->quat = _stateEstimate.orientation;

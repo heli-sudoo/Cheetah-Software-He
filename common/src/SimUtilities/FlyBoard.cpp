@@ -20,14 +20,13 @@ void FlyBoard::resetData() {
   if (data == nullptr) {
     printf(
         "[ERROR: Fly board] reset_Fly_board_data called when "
-        "cheetahlcm_spi_data_t* was null\n");
+        "cheetahlcm_fly_data_t* was null\n");
     return;
   }
 
   data->flags[board_num] = 0;
   data->qd_fly[board_num] = 0.f;
   data->q_fly[board_num] = 0.f;
-  data->spi_driver_status = 0;
 }
 
 /*!
@@ -37,7 +36,7 @@ void FlyBoard::resetCommand() {
   if (cmd == nullptr) {
     printf(
         "[ERROR: Fly board] reset_Fly_board_command called when "
-        "cheetahlcm_spi_command_t* was null\n");
+        "cheetahlcm_fly_command_t* was null\n");
     return;
   }
 

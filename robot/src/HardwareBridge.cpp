@@ -291,9 +291,14 @@ void MiniCheetahHardwareBridge::run() {
   _robotRunner =
       new RobotRunner(_controller, &taskManager, _robotParams.controller_dt, "robot-control");
 
+  printf("\n RobotRunner running\n"); 
   _robotRunner->driverCommand = &_gamepadCommand;
   _robotRunner->spiData = &_spiData;
   _robotRunner->spiCommand = &_spiCommand;
+
+  _robotRunner->flyData = &_flyData; 
+  _robotRunner->flyCommand = &_flyCommand;
+  
   _robotRunner->robotType = RobotType::MINI_CHEETAH;
   _robotRunner->vectorNavData = &_vectorNavData;
   _robotRunner->controlParameters = &_robotParams;
@@ -322,13 +327,16 @@ void MiniCheetahHardwareBridge::run() {
   PeriodicMemberFunction<MiniCheetahHardwareBridge> visualizationLCMTask(
       &taskManager, .0167, "lcm-vis",
       &MiniCheetahHardwareBridge::publishVisualizationLCM, this);
-  visualizationLCMTask.start();
 
+
+  visualizationLCMTask.start();
   // rc controller
   _port = init_sbus(false);  // Not Simulation
   PeriodicMemberFunction<HardwareBridge> sbusTask(
       &taskManager, .005, "rc_controller", &HardwareBridge::run_sbus, this);
   sbusTask.start();
+
+
 
   // temporary hack: microstrain logger
   PeriodicMemberFunction<MiniCheetahHardwareBridge> microstrainLogger(
@@ -421,6 +429,9 @@ void MiniCheetahHardwareBridge::runSpi() {
   _spiLcm.publish("spi_command", cmd);
 }
 
+//Hardware Bridge not needed to run flyBoard
+//Communicating over UDP socket. Ensure socket was successively made
+
 void Cheetah3HardwareBridge::runEcat() {
   rt_ethercat_set_command(_tiBoardCommand);
   rt_ethercat_run();
@@ -501,6 +512,7 @@ void Cheetah3HardwareBridge::publishEcatLCM() {
  * Send LCM visualization data
  */
 void HardwareBridge::publishVisualizationLCM() {
+  
   cheetah_visualization_lcmt visualization_data;
   for (int i = 0; i < 3; i++) {
     visualization_data.x[i] = _mainCheetahVisualization.p[i];
@@ -511,10 +523,9 @@ void HardwareBridge::publishVisualizationLCM() {
     visualization_data.rgba[i] = _mainCheetahVisualization.color[i];
   }
 
-  for (int i = 0; i < 12; i++) {
+  for (int i = 0; i < 14; i++) {
     visualization_data.q[i] = _mainCheetahVisualization.q[i];
   }
-
   _visualizationLCM.publish("main_cheetah_visualization", &visualization_data);
 }
 

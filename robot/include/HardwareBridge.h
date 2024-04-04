@@ -69,6 +69,9 @@ class HardwareBridge {
   SpiData _spiData;
   SpiCommand _spiCommand;
 
+  FlyData _flyData; 
+  FlyCommand _flyCommand;
+
   TiBoardCommand _tiBoardCommand[4];
   TiBoardData _tiBoardData[4];
 
@@ -91,6 +94,7 @@ class MiniCheetahHardwareBridge : public HardwareBridge {
  public:
   MiniCheetahHardwareBridge(RobotController* rc, bool load_parameters_from_file);
   void runSpi();
+  void runfly();
   void initHardware();
   void run();
   void runMicrostrain();
@@ -101,6 +105,7 @@ class MiniCheetahHardwareBridge : public HardwareBridge {
  private:
   VectorNavData _vectorNavData;
   lcm::LCM _spiLcm;
+  lcm::LCM _flyLcm;
   lcm::LCM _microstrainLcm;
   std::thread _microstrainThread;
   LordImu _microstrainImu;

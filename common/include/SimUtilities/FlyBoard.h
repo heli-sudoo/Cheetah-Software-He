@@ -35,8 +35,6 @@ struct FlyData {
   float qd_fly[2];
 
   int32_t flags[2];
-
-  int32_t spi_driver_status;
 };
 
 /*!

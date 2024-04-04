@@ -427,11 +427,15 @@ void Simulation::lowLevelControl() {
       spineBoard.run();
     }
 
+    printf("\nSpineBoard ran");
     //flywheels 
     for (auto& flyBoard : _flyBoards)
     { 
       flyBoard.run(); 
     }
+    printf("\nFlyBoard ran");
+    
+    
 
   } else if (_robot == RobotType::CHEETAH_3) {
     // update data

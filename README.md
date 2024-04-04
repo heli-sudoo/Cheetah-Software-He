@@ -19,7 +19,7 @@ make -j4
 
 If you are building code on your computer that you would like to copy over to the mini cheetah, you must replace the cmake command with
 ```
-cmake -DMINI_CHEETAH_BUILD=TRUE
+cmake -DMINI_CHEETAH_BUILD=TRUE ..
 ```
 otherwise it will not work.  If you are building mini cheetah code one the mini cheetah computer, you do not need to do this.
 
