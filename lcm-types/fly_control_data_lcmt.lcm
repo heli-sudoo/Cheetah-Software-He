@@ -3,5 +3,6 @@ struct fly_control_data_lcmt {
     float qd[2];
     float tau_est[2];
     float tau_act[2];
+    float speed_act[2];
     float microtime;
 }

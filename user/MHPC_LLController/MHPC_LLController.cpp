@@ -95,7 +95,7 @@ void MHPC_LLController::initializeController()
     {
        udp_data_sent[i] = 0.0; 
     }
-    for (int i=0; i < 2; i++)
+    for (int i=0; i < 4; i++)
     {
         udp_data_recv[i] = 0.0;
     }
@@ -353,6 +353,7 @@ void MHPC_LLController::locomotion_ctrl()
                 
             udp_data_recv_mutex.lock(); 
             _flyController->commands[fly].tauAct = udp_data_recv[fly];
+            _flyController->commands[fly].speedAct = udp_data_recv[2+fly];
             udp_data_recv_mutex.unlock();
         }
         else{
@@ -363,7 +364,8 @@ void MHPC_LLController::locomotion_ctrl()
             _flyController->commands[fly].kpJoint = 0.0f;
             _flyController->commands[fly].kdJoint = 0.0f; 
             udp_data_recv_mutex.lock(); 
-            _flyController->commands[fly].tauAct = udp_data_recv[fly];
+            _flyController->commands[fly].tauAct  = udp_data_recv[fly];
+            _flyController->commands[fly].speedAct = udp_data_recv[2+fly];
             udp_data_recv_mutex.unlock();
 
         }
@@ -673,6 +675,7 @@ void MHPC_LLController::standup_ctrl_run()
         _flyController->commands[fly].kdJoint = Kd(0,0);
         udp_data_recv_mutex.lock(); 
         _flyController->commands[fly].tauAct = udp_data_recv[fly];
+        _flyController->commands[fly].speedAct = udp_data_recv[2+fly];
         udp_data_recv_mutex.unlock();
     }
     iter_standup++;
