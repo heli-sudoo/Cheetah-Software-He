@@ -4,5 +4,7 @@ struct fly_control_data_lcmt {
     float tau_est[2];
     float tau_act[2];
     float speed_act[2];
+    float pwm_speed[2];
+    float pwm_tau[2];
     float microtime;
 }

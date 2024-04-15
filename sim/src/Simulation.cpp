@@ -427,13 +427,13 @@ void Simulation::lowLevelControl() {
       spineBoard.run();
     }
 
-    printf("\nSpineBoard ran");
+    // printf("\nSpineBoard ran");
     //flywheels 
     for (auto& flyBoard : _flyBoards)
     { 
       flyBoard.run(); 
     }
-    printf("\nFlyBoard ran");
+    // printf("\nFlyBoard ran");
     
     
 
@@ -517,10 +517,10 @@ void Simulation::highLevelControl() {
     _spiCommand = _sharedMemory().robotToSim.spiCommand;
     _flyCommand = _sharedMemory().robotToSim.flyCommand; 
     // pretty_print(_spiCommand.q_des_abad, "q des abad", 4);
-    if ( std::abs(_flyCommand.qd_des_fly[0]) >= 0.4f  || std::abs(_flyCommand.qd_des_fly[1]) >= 0.4f ) {
-      std::cout << _flyCommand.qd_des_fly[0] * 9.549 * 21 <<  "qd_des_fly RPM at flywheel 1\n"; //,2); 
-      std::cout << _flyCommand.qd_des_fly[1] * 9.549 * 21 <<  "qd_des_fly RPM at flywheel 2\n"; //,2); 
-    }
+    // if ( std::abs(_flyCommand.qd_des_fly[0]) >= 0.4f  || std::abs(_flyCommand.qd_des_fly[1]) >= 0.4f ) {
+    //   std::cout << _flyCommand.qd_des_fly[0] * 9.549 * 21 <<  "qd_des_fly RPM at flywheel 1\n"; //,2); 
+    //   std::cout << _flyCommand.qd_des_fly[1] * 9.549 * 21 <<  "qd_des_fly RPM at flywheel 2\n"; //,2); 
+    // }
     // pretty_print(_spiCommand.q_des_hip, "q des hip", 4);
     // pretty_print(_spiCommand.q_des_knee, "q des knee", 4);
   } else if (_robot == RobotType::CHEETAH_3) {

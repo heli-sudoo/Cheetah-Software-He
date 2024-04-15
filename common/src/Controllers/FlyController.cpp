@@ -18,6 +18,8 @@ void FlyControllerCommand<T>::zero() {
   tauFeedForward = T();
   tauAct = T();
   speedAct = T();
+  pwmTau = T(); 
+  pwmSpeed = T();
   qDes  =  T();
   qdDes = T();
   kpCartesian = T();
@@ -209,8 +211,12 @@ void FlyController<T>::setLcm(fly_control_data_lcmt *lcmData, fly_control_comman
       lcmData->qd[fly] = datas[fly].qd;
       lcmData->tau_est[fly] = datas[fly].tauEstimate;
 
-      lcmData->tau_act[fly] = commands[fly].tauAct; 
+      lcmData->tau_act[fly]   = commands[fly].tauAct; 
       lcmData->speed_act[fly] = commands[fly].speedAct;
+
+      //Doing this mainly to ensure data is transformed the right way
+      lcmData->pwm_speed[fly] = commands[fly].pwmSpeed;
+      lcmData->pwm_tau[fly]   = commands[fly].pwmTau; 
 
 
       lcmCommand->tau_ff[fly] = commands[fly].tauFeedForward;

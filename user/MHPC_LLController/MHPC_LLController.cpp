@@ -99,6 +99,10 @@ void MHPC_LLController::initializeController()
     {
         udp_data_recv[i] = 0.0;
     }
+    for (int i = 4; i < 8; i++)
+    {
+        udp_data_recv[i] = 1.65; //this is our PWM mapping for a zero
+    }
 
     yaw_flip_plus_times = 0;
     yaw_flip_mins_times = 0;
@@ -352,8 +356,15 @@ void MHPC_LLController::locomotion_ctrl()
             _flyController->commands[fly].kdJoint = KdMat_joint(0,0); 
                 
             udp_data_recv_mutex.lock(); 
+
+            //Data we need
             _flyController->commands[fly].tauAct = udp_data_recv[fly];
             _flyController->commands[fly].speedAct = udp_data_recv[2+fly];
+            //Data to verify out data 
+            _flyController->commands[fly].pwmTau = udp_data_recv[4+fly];
+            _flyController->commands[fly].pwmSpeed = udp_data_recv[6+fly];
+
+
             udp_data_recv_mutex.unlock();
         }
         else{
@@ -363,9 +374,15 @@ void MHPC_LLController::locomotion_ctrl()
             _flyController->commands[fly].qdDes = 0.0f;
             _flyController->commands[fly].kpJoint = 0.0f;
             _flyController->commands[fly].kdJoint = 0.0f; 
+
             udp_data_recv_mutex.lock(); 
+
             _flyController->commands[fly].tauAct  = udp_data_recv[fly];
             _flyController->commands[fly].speedAct = udp_data_recv[2+fly];
+
+            _flyController->commands[fly].pwmTau = udp_data_recv[4+fly];
+            _flyController->commands[fly].pwmSpeed = udp_data_recv[6+fly];
+
             udp_data_recv_mutex.unlock();
 
         }
@@ -676,6 +693,10 @@ void MHPC_LLController::standup_ctrl_run()
         udp_data_recv_mutex.lock(); 
         _flyController->commands[fly].tauAct = udp_data_recv[fly];
         _flyController->commands[fly].speedAct = udp_data_recv[2+fly];
+
+        _flyController->commands[fly].pwmTau = udp_data_recv[4+fly];
+        _flyController->commands[fly].pwmSpeed = udp_data_recv[6+fly];
+
         udp_data_recv_mutex.unlock();
     }
     iter_standup++;

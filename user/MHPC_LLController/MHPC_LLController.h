@@ -203,7 +203,7 @@ private:
     struct sockaddr_in serverAddr;
     socklen_t addr_size; 
     float udp_data_sent[6]; // [q_fly qd_fly tau_fly] for fly1 and fly2 
-    float udp_data_recv[4]; // qd_fly for fly1 and fly2
+    float udp_data_recv[8]; // qd_fly for fly1 and fly2
 
 };
 

@@ -199,7 +199,7 @@ FloatingBaseModel<T> Quadruped<T>::buildModel() {
     } else {
       model.addBody(_hipInertia, _hipRotorInertia, _hipGearRatio, bodyID - 1,
                     JointType::Revolute, CoordinateAxis::Y, xtreeHip,
-                    xtreeHipRotor);
+                    xtreeHipRotor);_batteryV
     }
 
     // add knee ground contact point

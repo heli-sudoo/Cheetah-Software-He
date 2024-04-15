@@ -28,7 +28,7 @@ struct FlyControllerCommand {
 
   void zero();
 
-  T tauFeedForward, tauAct, speedAct, qDes, qdDes;
+  T tauFeedForward, tauAct, speedAct, qDes, qdDes,pwmSpeed, pwmTau;
   T kpCartesian, kdCartesian, kpJoint, kdJoint;
 };
 
