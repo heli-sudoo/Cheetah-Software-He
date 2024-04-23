@@ -1,0 +1,7 @@
+struct udp_data_lcmt
+{
+    float tau_act[2];
+    float speed_act[2];
+    float pwm_speed[2];
+    float pwm_tau[2];
+}

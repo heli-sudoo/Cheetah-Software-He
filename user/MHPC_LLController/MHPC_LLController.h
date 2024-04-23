@@ -9,6 +9,7 @@
 
 #include "MHPC_Command_lcmt.hpp"
 #include "MHPC_Data_lcmt.hpp"
+#include "udp_data_lcmt.hpp"
 #include "MHPCLLUserParameters.h"
 #include "VWBC/include/VWBC.h"
 #include "extVelocity_lcmt.hpp"
@@ -158,8 +159,11 @@ public:
     // LCM
     lcm::LCM mpc_data_lcm;
     lcm::LCM mpc_cmds_lcm;
+    lcm::LCM udp_data_lcm; 
+
     MHPC_Command_lcmt mpc_cmds;
     MHPC_Data_lcmt mpc_data;
+    udp_data_lcmt udp_data;
     std::mutex mpc_cmd_mutex;
     std::mutex mpc_data_mutex;
     std::mutex udp_data_recv_mutex;

@@ -592,7 +592,23 @@ void MHPC_LLController::updateMPC_UDP()
             recvStatus = recv(sockfd, udp_data_recv, sizeof(udp_data_recv), 0);
             // printf("\n recv Status is %i", recvStatus);
             // printf("\n udp_data_recv: %f %f",udp_data_recv[0], udp_data_recv[1]);
+            udp_data_recv_mutex.lock();
+
+            for (int fly = 0; fly < 2; fly++){
+        
+                udp_data.tau_act[fly]   = udp_data_recv[fly];
+                udp_data.speed_act[fly] = udp_data_recv[2+fly];
+                udp_data.pwm_tau[fly]   = udp_data_recv[4+fly];
+                udp_data.pwm_speed[fly] = udp_data_recv[6+fly];
+
+            }
+
+            udp_data_lcm.publish("udp_data", &udp_data); 
+            udp_data_recv_mutex.unlock();
+        
+
         }
+        
     }
 }
 
@@ -690,11 +706,12 @@ void MHPC_LLController::standup_ctrl_run()
         _flyController->commands[fly].qDes = progress * qDes[0] + (1. - progress) * init_jointfly_pos[fly];
         _flyController->commands[fly].kpJoint = Kp(0,0);
         _flyController->commands[fly].kdJoint = Kd(0,0);
+        
         udp_data_recv_mutex.lock(); 
-        _flyController->commands[fly].tauAct = udp_data_recv[fly];
-        _flyController->commands[fly].speedAct = udp_data_recv[2+fly];
 
-        _flyController->commands[fly].pwmTau = udp_data_recv[4+fly];
+        _flyController->commands[fly].tauAct   = udp_data_recv[fly];
+        _flyController->commands[fly].speedAct = udp_data_recv[2+fly];
+        _flyController->commands[fly].pwmTau   = udp_data_recv[4+fly];
         _flyController->commands[fly].pwmSpeed = udp_data_recv[6+fly];
 
         udp_data_recv_mutex.unlock();

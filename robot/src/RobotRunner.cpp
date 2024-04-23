@@ -167,9 +167,11 @@ void RobotRunner::run() {
         _legController->datas[leg].q[joint];
     }
   }
-  // for (int fly = 0; fly < 2; fly++){
-  //   cheetahMainVisualization->q[12+fly] = _flyController->datas[fly].q; 
-  // }
+  for (int fly = 0; fly < 2; fly++){
+    cheetahMainVisualization->q[12+fly] = _flyController->datas[fly].q; 
+  }
+
+  
   cheetahMainVisualization->p.setZero();
   cheetahMainVisualization->p = _stateEstimate.position;
   cheetahMainVisualization->quat = _stateEstimate.orientation;

@@ -7,6 +7,7 @@
 
 #include <string>
 #include <vector>
+#include <cstdint>  
 
 void load_obj_file(std::string fileName, std::vector<float>& positions,
                    std::vector<float>& normals);

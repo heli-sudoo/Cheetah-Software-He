@@ -22,6 +22,7 @@
 #include "Utilities/PeriodicTask.h"
 #include "control_parameter_request_lcmt.hpp"
 #include "control_parameter_respones_lcmt.hpp"
+#include "udp_data_lcmt.hpp"
 #include "gamepad_lcmt.hpp"
 #include "microstrain_lcmt.hpp"
 #include "ecat_command_t.hpp"
@@ -48,12 +49,18 @@ class HardwareBridge {
   ~HardwareBridge() { delete _robotRunner; }
   void handleGamepadLCM(const lcm::ReceiveBuffer* rbuf, const std::string& chan,
                         const gamepad_lcmt* msg);
+                        
 
   void handleInterfaceLCM();
   void handleControlParameter(const lcm::ReceiveBuffer* rbuf,
                               const std::string& chan,
                               const control_parameter_request_lcmt* msg);
 
+  void get_fly_data(const lcm::ReceiveBuffer* rbuf,
+                    const std::string& chan,
+                    const udp_data_lcmt* msg);
+  void getFlyData(); 
+                                    
   void publishVisualizationLCM();
   void run_sbus();
 
@@ -65,6 +72,9 @@ class HardwareBridge {
   CheetahVisualization _mainCheetahVisualization;
   lcm::LCM _interfaceLCM;
   lcm::LCM _visualizationLCM;
+
+  lcm::LCM _UDPLCM; 
+
   control_parameter_respones_lcmt _parameter_response_lcmt;
   SpiData _spiData;
   SpiCommand _spiCommand;
@@ -80,7 +90,9 @@ class HardwareBridge {
   RobotControlParameters _robotParams;
   u64 _iterations = 0;
   std::thread _interfaceLcmThread;
+  std::thread _udpLcmThread; 
   volatile bool _interfaceLcmQuit = false;
+  volatile bool _flyDataLcmQuit  = false; 
   RobotController* _controller = nullptr;
   ControlParameters* _userControlParameters = nullptr;
 
@@ -99,6 +111,10 @@ class MiniCheetahHardwareBridge : public HardwareBridge {
   void run();
   void runMicrostrain();
   void logMicrostrain();
+  // void get_fly_data(const lcm::ReceiveBuffer* rbuf,
+  //                   const std::string& chan,
+  //                   const udp_data_lcmt* msg);
+  // void getFlyData(); 
   void abort(const std::string& reason);
   void abort(const char* reason);
 
