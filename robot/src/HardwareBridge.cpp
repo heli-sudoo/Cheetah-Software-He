@@ -463,10 +463,10 @@ void  MiniCheetahHardwareBridge::get_fly_data(const lcm::ReceiveBuffer* rbuf,
   (void)rbuf;
   (void)chan; 
   for (int iFly=0; iFly < 2; iFly++)  {
-    _flyData.q_fly[iFly] = 0.0; 
-    _flyData.qd_fly[iFly] = msg->speed_act[iFly];
-    _flyCommand.q_des_fly[iFly] = 0.0;
-    _flyCommand.qd_des_fly[iFly] = 0.0; 
+    _flyData.q_fly[iFly]         = 0.0; 
+    _flyData.qd_fly[iFly]        = msg->speed_act[iFly];
+    _flyCommand.q_des_fly[iFly]  = msg->q_cmd[iFly];
+    _flyCommand.qd_des_fly[iFly] = msg->qd_cmd[iFly];
   }
 }
 

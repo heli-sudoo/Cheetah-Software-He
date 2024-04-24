@@ -4,4 +4,6 @@ struct udp_data_lcmt
     float speed_act[2];
     float pwm_speed[2];
     float pwm_tau[2];
+    float q_cmd[2];
+    float qd_cmd[2]; 
 }

@@ -95,7 +95,7 @@ void MHPC_LLController::initializeController()
     {
        udp_data_sent[i] = 0.0; 
     }
-    for (int i=0; i < 4; i++)
+    for (int i=0; i < 12; i++)
     {
         udp_data_recv[i] = 0.0;
     }
@@ -600,6 +600,8 @@ void MHPC_LLController::updateMPC_UDP()
                 udp_data.speed_act[fly] = udp_data_recv[2+fly];
                 udp_data.pwm_tau[fly]   = udp_data_recv[4+fly];
                 udp_data.pwm_speed[fly] = udp_data_recv[6+fly];
+                udp_data.q_cmd[fly]     = qJ_des.tail<2>()[fly];
+                udp_data.qd_cmd[fly]    = qJd_des.tail<2>()[fly];
 
             }
 
