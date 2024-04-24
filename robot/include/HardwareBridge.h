@@ -80,7 +80,9 @@ class HardwareBridge {
   SpiCommand _spiCommand;
 
   FlyData _flyData; 
+  FlyData flyDataIntermediate; 
   FlyCommand _flyCommand;
+  FlyCommand flyCommandIntermediate;
 
   TiBoardCommand _tiBoardCommand[4];
   TiBoardData _tiBoardData[4];

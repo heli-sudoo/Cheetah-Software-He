@@ -317,9 +317,9 @@ void MiniCheetahHardwareBridge::run() {
       &taskManager, .002, "spi", &MiniCheetahHardwareBridge::runSpi, this);
   spiTask.start();
 
-  // PeriodicMemberFunction<MiniCheetahHardwareBridge>  flyTask(
-  //     &taskManager, .002, "fly", &MiniCheetahHardwareBridge::runFly, this);
-  // flyTask.start();
+  PeriodicMemberFunction<MiniCheetahHardwareBridge>  flyTask(
+      &taskManager, .002, "fly", &MiniCheetahHardwareBridge::runFly, this);
+  flyTask.start();
 
   // microstrain
   if(_microstrainInit)
@@ -448,14 +448,15 @@ void MiniCheetahHardwareBridge::runSpi() {
 
 //Hardware Bridge not needed to run flyBoard
 //Communicating over UDP socket. Ensure socket was successively made
-// void MiniCheetahHardwareBridge::runFly() {
+void MiniCheetahHardwareBridge::runFly() {
 
-//   // fly_control_data_lcmt* data = get_fly_data(); 
-//   // // memcpy(dest,src,size_t); 
-//   // memcpy(&_flyData, data,sizeof(fly_control_data_lcmt));
-//   // _flyLcm.publish("fly_data_debug", data); 
-//   get_fly_data(); 
-// }
+  // fly_control_data_lcmt* data = get_fly_data(); 
+  // // memcpy(dest,src,size_t); 
+  // memcpy(&_flyData, data,sizeof(fly_control_data_lcmt));
+  // _flyLcm.publish("fly_data_debug", data); 
+  // get_fly_data();   
+  memcpy(&_flyData,&flyDataIntermediate,sizeof(FlyCommand)); 
+}
 
 void  MiniCheetahHardwareBridge::get_fly_data(const lcm::ReceiveBuffer* rbuf,
                                       const std::string& chan,
@@ -463,10 +464,10 @@ void  MiniCheetahHardwareBridge::get_fly_data(const lcm::ReceiveBuffer* rbuf,
   (void)rbuf;
   (void)chan; 
   for (int iFly=0; iFly < 2; iFly++)  {
-    _flyData.q_fly[iFly]         = 0.0; 
-    _flyData.qd_fly[iFly]        = msg->speed_act[iFly];
-    _flyCommand.q_des_fly[iFly]  = msg->q_cmd[iFly];
-    _flyCommand.qd_des_fly[iFly] = msg->qd_cmd[iFly];
+    flyDataIntermediate.q_fly[iFly]         = 0.0; 
+    flyDataIntermediate.qd_fly[iFly]        = msg->speed_act[iFly];
+    flyCommandIntermediate.q_des_fly[iFly]  = msg->q_cmd[iFly];
+    flyCommandIntermediate.qd_des_fly[iFly] = msg->qd_cmd[iFly];
   }
 }
 
