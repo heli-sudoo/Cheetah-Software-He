@@ -18,6 +18,5 @@ struct MHPC_Command_lcmt {
     float solve_time;
     int32_t iters;
     int32_t ls_iters;
-    int32_t reg_iters;
-    float rcost;
+    int32_t reg_iters;    
 }
