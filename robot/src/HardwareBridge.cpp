@@ -455,7 +455,8 @@ void MiniCheetahHardwareBridge::runFly() {
   // memcpy(&_flyData, data,sizeof(fly_control_data_lcmt));
   // _flyLcm.publish("fly_data_debug", data); 
   // get_fly_data();   
-  memcpy(&_flyData,&flyDataIntermediate,sizeof(FlyCommand)); 
+  memcpy(&_flyData,&flyDataIntermediate,sizeof(FlyData)); 
+  memcpy(&_flyCommand,&flyCommandIntermediate,sizeof(FlyCommand)); 
 }
 
 void  MiniCheetahHardwareBridge::get_fly_data(const lcm::ReceiveBuffer* rbuf,
