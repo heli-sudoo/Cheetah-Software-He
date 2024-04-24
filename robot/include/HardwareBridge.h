@@ -56,10 +56,10 @@ class HardwareBridge {
                               const std::string& chan,
                               const control_parameter_request_lcmt* msg);
 
-  void get_fly_data(const lcm::ReceiveBuffer* rbuf,
-                    const std::string& chan,
-                    const udp_data_lcmt* msg);
-  void getFlyData(); 
+  // void get_fly_data(const lcm::ReceiveBuffer* rbuf,
+  //                   const std::string& chan,
+  //                   const udp_data_lcmt* msg);
+  // void getFlyData(); 
                                     
   void publishVisualizationLCM();
   void run_sbus();
@@ -106,15 +106,15 @@ class MiniCheetahHardwareBridge : public HardwareBridge {
  public:
   MiniCheetahHardwareBridge(RobotController* rc, bool load_parameters_from_file);
   void runSpi();
-  void runfly();
+  void runFly();
   void initHardware();
   void run();
   void runMicrostrain();
   void logMicrostrain();
-  // void get_fly_data(const lcm::ReceiveBuffer* rbuf,
-  //                   const std::string& chan,
-  //                   const udp_data_lcmt* msg);
-  // void getFlyData(); 
+  void get_fly_data(const lcm::ReceiveBuffer* rbuf,
+                    const std::string& chan,
+                    const udp_data_lcmt* msg);
+  void getFlyData(); 
   void abort(const std::string& reason);
   void abort(const char* reason);
 
