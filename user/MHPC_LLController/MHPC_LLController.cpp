@@ -263,8 +263,8 @@ void MHPC_LLController::locomotion_ctrl()
         {
             // get a solution
             wbc_.getSolution(tau_ff, qddDes);
-            qJd_des +=  qddDes.tail<12>()* _controlParameters->controller_dt;        
-            qJ_des += qJ_des * _controlParameters->controller_dt;
+            // qJd_des +=  qddDes.tail<12>()* _controlParameters->controller_dt;        
+            // qJ_des += qJ_des * _controlParameters->controller_dt;
         }else
         {
             const auto& K_mpc = mpc_solution.K;
