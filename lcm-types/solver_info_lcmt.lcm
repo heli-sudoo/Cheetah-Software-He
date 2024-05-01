@@ -1,0 +1,10 @@
+struct solver_info_lcmt {
+    int32_t n_iter;
+    int32_t n_ls_iter;
+    int32_t n_reg_iter;
+    float   solve_time;
+    float   cost;
+    float   dyn_feas;
+    float   ineq_violation;
+    float   eq_violation;
+}
