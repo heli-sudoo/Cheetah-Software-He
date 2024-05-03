@@ -18,7 +18,8 @@ public:
         INIT_PARAMETER(kick_dur),
         INIT_PARAMETER(kick_linear),
         INIT_PARAMETER(kick_angular),
-        INIT_PARAMETER(vwbc_info_lcm)                       
+        INIT_PARAMETER(vwbc_info_lcm),
+        INIT_PARAMETER(mpc_rate)                       
       {}
   DECLARE_PARAMETER(Vec3<double>, Kp_jointPD);
   DECLARE_PARAMETER(Vec3<double>, Kd_jointPD);
@@ -32,6 +33,7 @@ public:
   DECLARE_PARAMETER(Vec3<double>, kick_linear);
   DECLARE_PARAMETER(Vec3<double>, kick_angular);
   DECLARE_PARAMETER(double, vwbc_info_lcm);
+  DECLARE_PARAMETER(double, mpc_rate);
 };
 
 #endif //PROJECT_MHPCLL_USERPARAMETERS_H

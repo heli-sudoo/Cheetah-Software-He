@@ -71,7 +71,7 @@ void MHPC_LLController::initializeController()
     mpc_time = 0;
     iter_loco = 0;
     iter_between_mpc_update = 0;
-    nsteps_between_mpc_update = 10;
+    nsteps_between_mpc_update = 5;
 
     yaw_flip_plus_times = 0;
     yaw_flip_mins_times = 0;
@@ -187,6 +187,7 @@ void MHPC_LLController::initialize_locomotion_ctrl()
     updateStateEstimate();
     resolveMPCIfNeeded();
     is_first_mpc_request_sent = true;
+    nsteps_between_mpc_update = static_cast<int>(500/userParameters.mpc_rate);
 }
 
 static int LegIDMap[] = {1,0,3,2};
