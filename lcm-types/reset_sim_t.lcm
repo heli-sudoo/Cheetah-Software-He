@@ -1,4 +1,0 @@
-struct  reset_sim_t
-{
-    boolean reset;
-}

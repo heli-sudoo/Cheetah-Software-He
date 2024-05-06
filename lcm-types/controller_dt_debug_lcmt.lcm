@@ -1,6 +1,0 @@
-struct controller_dt_debug_lcmt {
-    float   mpctime;
-    float   systime;
-    int32_t iter;
-    int32_t iter_loco;
-}
