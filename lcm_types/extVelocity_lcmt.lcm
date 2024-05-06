@@ -1,0 +1,4 @@
+struct extVelocity_lcmt {
+    float linear[3];
+    float angular[3];
+}

@@ -1,0 +1,12 @@
+struct vwbc_info_lcmt 
+{
+    float time;
+
+    int32_t contact_est[4];
+
+    int32_t nWSR;
+
+    float cputime;
+
+    int32_t success;
+}

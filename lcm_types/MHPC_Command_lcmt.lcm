@@ -1,0 +1,18 @@
+struct MHPC_Command_lcmt {
+    int32_t N_mpcsteps;
+    float mpc_times[N_mpcsteps];
+    float torque[N_mpcsteps][12];    
+    float eul[N_mpcsteps][3];
+    float pos[N_mpcsteps][3];
+    float qJ[N_mpcsteps][12];
+    float vWorld[N_mpcsteps][3];
+    float eulrate[N_mpcsteps][3];        
+    float qJd[N_mpcsteps][12];
+    float GRF[N_mpcsteps][12];
+    float feedback[N_mpcsteps][432];
+    float Qu[N_mpcsteps][12];
+    float Quu[N_mpcsteps][144];
+    float Qux[N_mpcsteps][432];
+    int32_t contacts[N_mpcsteps][4];
+    float statusTimes[N_mpcsteps][4];             
+}

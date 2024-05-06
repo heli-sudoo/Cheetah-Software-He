@@ -1,0 +1,11 @@
+struct mhpc_plan_3D_lcmt {
+    float Pos[3][100];
+    float rpy[3][100];
+    float quat[4][100];
+    float q_knee[4][100];
+    float q_hip[4][100];
+    float v_world[3][100];
+    float omega_world[3][100];
+    float omega_body[3][100];
+    float microtime[100];
+}
