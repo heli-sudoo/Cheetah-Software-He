@@ -7,7 +7,7 @@ include_directories("../../third-party/")
 include_directories(SYSTEM "../../third-party/qpOASES/include")
 include_directories("../../third-party/ParamHandler")
 
-include_directories("../../lcm-types/cpp")
+include_directories("../../lcm_types/cpp")
 include_directories("/usr/local/include/lcm/")   # lcm includes
 include_directories("/usr/local/include/eigen3")   # lcm includes
 include_directories(${CMAKE_BINARY_DIR})

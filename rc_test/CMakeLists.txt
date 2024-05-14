@@ -11,7 +11,7 @@ include_directories("../third-party/vectornav/include")
 include_directories("../third-party/vectornav/include/vn")
 include_directories("../third-party/lord_imu/Include")
 
-include_directories("../lcm-types/cpp")
+include_directories("../lcm_types/cpp")
 include_directories("/usr/local/include/lcm/")   # lcm includes
 
 file(GLOB sources "*.cpp")

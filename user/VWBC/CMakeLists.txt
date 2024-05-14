@@ -11,7 +11,7 @@ option(USE_PINOCCHIO "use pinocchio for VWBC" OFF)
 include_directories("../../robot/include")
 include_directories("../../common/include/")
 include_directories("../../common/include/Utilities")
-include_directories("../../lcm-types/cpp")
+include_directories("../../lcm_types/cpp")
 include_directories("include")
 
 file(GLOB_RECURSE sources src/casadi_interface.cpp
