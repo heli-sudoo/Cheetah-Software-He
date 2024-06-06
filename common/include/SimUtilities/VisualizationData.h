@@ -182,6 +182,8 @@ struct VisualizationData {
     }
     return nullptr;
   }
+
+  bool isNotSafe; 
 };
 
 #endif

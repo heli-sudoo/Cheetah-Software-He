@@ -156,8 +156,8 @@ Simulation::Simulation(RobotType robot, Graphics3D* window,
   x0.q[9] = 0.7;
   x0.q[10] = -1.0;
   x0.q[11] = -2.715;
-  x0.q[12] =  M_PI * 1.0; 
-  x0.q[13] =  M_PI * 1.0; 
+  x0.q[12] =  0.0; 
+  x0.q[13] =  0.0; 
 
 
   setRobotState(x0);

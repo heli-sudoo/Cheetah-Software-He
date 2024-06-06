@@ -116,6 +116,110 @@ void MHPC_LLController::initializeController()
     is_first_mpc_request_sent = false;
 }
 
+
+void MHPC_LLController::safetyCheck()
+{ 
+    //Some functionality here is adopted from SafetyChecker.cpp from the MIT Controller 
+    
+    // printf("\nRunning safety check() "); 
+    //The state Estimator
+    const auto &data = _stateEstimator->getResult();
+
+    //orientation and leg safety bools
+    bool OrientSafe = true;
+    if ( (abs(data.rpy(0)) >= 1.5708 ) || (abs(data.rpy(1)) >= 1.5708 ) ) // || (abs(data.rpy(2) >= 0.83)) )
+    {
+        printf("Orientation safety check failed!\n");
+        OrientSafe = false;
+    } 
+
+    //checking leg safety 
+    auto &legCmds = _legController->commands;
+    const auto &legData = _legController->datas; 
+
+    bool legSafe = true;
+    if (_controlParameters->control_mode > 1)
+    {
+        for (int leg = 0; leg < 4; leg++) 
+        { 
+            //abad hip knee 0 1 2 
+            if ( (legData[leg].q(2) < -0.15) ) // || (legData[leg].qd(1) > -0.35) )
+            {
+                legSafe = false; 
+            } 
+        }
+    }
+
+
+    // printf("\n legCmds[0].forceFeedForward(:) %f ", legCmds[0].forceFeedForward(0)); std::cout << " " << legCmds[0].forceFeedForward(1) << " " << legCmds[0].forceFeedForward(2); 
+    bool safeForceFeedForward = true; //will be negated if any of the ff are too big 
+    if (_controlParameters->control_mode > 1)
+    {   
+    // Initialize maximum vertical and lateral forces
+    float maxLateralForce = 0;
+    float maxVerticalForce = 0;
+
+    // Maximum force limits for each robot
+    if (_quadruped->_robotType == RobotType::CHEETAH_3) {
+        maxLateralForce = 1800;
+        maxVerticalForce = 1800;
+
+    } else if (_quadruped->_robotType == RobotType::MINI_CHEETAH) {
+        maxLateralForce = 350;
+        maxVerticalForce = 350;
+    }
+
+    for (int leg = 0; leg < 4; leg++)
+    {
+        for (int frc = 0; frc < 3; frc++)
+        {
+            if ( abs(legCmds[leg].forceFeedForward(frc)) > maxVerticalForce) 
+            {
+            safeForceFeedForward = false;
+            }
+        }
+    }
+    }
+
+
+    if (!safeForceFeedForward)
+    {
+    printf("\n FeedForward forces were not safe"); 
+    }  
+    if (!OrientSafe)
+    {
+    printf("\n Orientation was not safe");
+    }
+    if (!legSafe)
+    {
+    printf("\n LegSafe were not safe");
+    }
+
+    //if one safety check fails, the robot is not safe 
+    if ( (!OrientSafe) || (!legSafe)  || (!safeForceFeedForward) )
+    {
+        RbtnotSafe = true;
+    }
+    
+    // _visualizationData->isNotSafe = false; //reset me.
+    // // if ( (RbtnotSafe) || (mpc_cmds.ctrl_restart == 1 ) )
+    // {
+    //     //this loop combines both those conditions
+    //     _visualizationData->isNotSafe = true; 
+    //     // mpc_data.restart_mpc = 1; 
+    //     // printf("\n 1.0 I reset the robot %i \n ", _visualizationData->isNotSafe ); 
+    //     // Reset();
+    //     // printf("\n 2.0 I reset the robot %i %i %i \n ", _visualizationData->isNotSafe,RbtnotSafe,mpc_cmds.ctrl_restart);
+    //     // RbtnotSafe = false; 
+    //     // mpc_cmds.ctrl_restart = 0; 
+    //     // printf("\n 2.0 I reset the robot %i %i %i \n ", _visualizationData->isNotSafe,RbtnotSafe,mpc_cmds.ctrl_restart);
+    //     // _controlParameters
+    //     // _sim
+    // }
+   
+
+}
+
 /*
     @brief: 
             A separate thread (from main thread) that keeps monitoring incoming LCM messages
@@ -241,6 +345,8 @@ void MHPC_LLController::locomotion_ctrl()
     updateContactEstimate();
 
     applyVelocityDisturbance();
+    
+    safetyCheck(); 
 
     Vec14<float> tau_ff(14);
     tau_ff = mpc_solution.torque;
@@ -358,12 +464,15 @@ void MHPC_LLController::locomotion_ctrl()
             udp_data_recv_mutex.lock(); 
 
             //Data we need
-            _flyController->commands[fly].tauAct = udp_data_recv[fly];
+            _flyController->commands[fly].tauAct   = udp_data_recv[fly];
             _flyController->commands[fly].speedAct = udp_data_recv[2+fly];
             //Data to verify out data 
-            _flyController->commands[fly].pwmTau = udp_data_recv[4+fly];
+            _flyController->commands[fly].pwmTau   = udp_data_recv[4+fly];
             _flyController->commands[fly].pwmSpeed = udp_data_recv[6+fly];
 
+            _flyController->datas[fly].q =  0;  ///udp_data_recv[2+fly] * 0.10472 * _controlParameters->controller_dt; 
+            _flyController->datas[fly].qd =  udp_data_recv[2+fly]; 
+            // _flyController->datas[fly].qd =  ( (udp_data_recv[fly] / 21.0f) * 1000 * 8.77)   * 0.10472;
 
             udp_data_recv_mutex.unlock();
         }
@@ -396,7 +505,7 @@ void MHPC_LLController::locomotion_ctrl()
     udp_data_sent[2] = qJd_des.tail<2>()[0];
     udp_data_sent[3] = qJd_des.tail<2>()[1]; 
     //tau for fly1 and fly2
-    udp_data_sent[4] = tau_ff.tail<2>()[0];
+    udp_data_sent[4] = -1.0 * tau_ff.tail<2>()[0]; // bc of mounting
     udp_data_sent[5] = tau_ff.tail<2>()[1];
 
     
@@ -422,6 +531,9 @@ void MHPC_LLController::resolveMPCIfNeeded()
         std::copy(qJ_se.begin(), qJ_se.end(), mpc_data.qJ);
         std::copy(qJd_se.begin(), qJd_se.end(), mpc_data.qJd);
 
+        mpc_data.robotFailed = RbtnotSafe; 
+
+
         mpc_data.mpctime = mpc_time;
         mpc_data_lcm.publish("MHPC_DATA", &mpc_data);
         printf(YEL);
@@ -443,8 +555,11 @@ void MHPC_LLController::updateStateEstimate()
     qJd_se.head<12>() << legdatas[1].qd, legdatas[0].qd, legdatas[3].qd, legdatas[2].qd;
 
     const auto& flydatas = _flyController->datas; 
-    qJ_se.tail<2>() << flydatas[0].q, flydatas[1].q;
-    qJd_se.tail<2>() << flydatas[0].qd, flydatas[1].qd;
+    qJ_se.tail<2>()  << flydatas[0].q  , flydatas[1].q ;
+    qJd_se.tail<2>() << flydatas[0].qd , flydatas[1].qd;
+
+    printf("flydatas[0].q, flydatas[1].q %f %f",flydatas[0].q, flydatas[1].q);
+    // printf("flydatas[0].qd, flydatas[1].qd %f %f",flydatas[0].qd, flydatas[1].qd);
 
     x_se << se.position, eul_se, qJ_se, se.vWorld, eulrate_se, qJd_se;
 }
@@ -715,6 +830,10 @@ void MHPC_LLController::standup_ctrl_run()
         _flyController->commands[fly].speedAct = udp_data_recv[2+fly];
         _flyController->commands[fly].pwmTau   = udp_data_recv[4+fly];
         _flyController->commands[fly].pwmSpeed = udp_data_recv[6+fly];
+
+
+        _flyController->datas[fly].q  =  udp_data_recv[2+fly] * _controlParameters->controller_dt;
+        _flyController->datas[fly].qd =  udp_data_recv[2+fly] ;  // rpm * 0.10472 = rad/s
 
         udp_data_recv_mutex.unlock();
     }

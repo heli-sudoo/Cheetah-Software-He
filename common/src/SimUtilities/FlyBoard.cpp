@@ -71,11 +71,12 @@ void FlyBoard::run() {
   //                   kd_softstop * (data->qd_fly[board_num]) +
   //                   cmd->tau_fly_ff[board_num];
   // } else {
-  torque_out = cmd->kp_fly[board_num] *
-                        (cmd->q_des_fly[board_num] - data->q_fly[board_num]) +
-                    cmd->kd_fly[board_num] * (cmd->qd_des_fly[board_num] -
-                                               data->qd_fly[board_num]) +
-                    cmd->tau_fly_ff[board_num];
+  // torque_out = cmd->kp_fly[board_num] *
+  //                       (cmd->q_des_fly[board_num] - data->q_fly[board_num]) +
+  //                   cmd->kd_fly[board_num] * (cmd->qd_des_fly[board_num] -
+  //                                              data->qd_fly[board_num]) +
+  //                   cmd->tau_fly_ff[board_num];
+  torque_out = cmd->tau_fly_ff[board_num];
 
   float torque_limits = disabled_torque;
 

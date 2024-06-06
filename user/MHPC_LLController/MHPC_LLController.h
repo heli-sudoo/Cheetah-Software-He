@@ -87,7 +87,8 @@ public:
     void locomotion_ctrl();
     void fixYawFlip();
     void fixRollFlip();
-   
+    void safetyCheck(); 
+       
     void resolveMPCIfNeeded();    
     void updateStateEstimate();
     void updateMPCCommand();
@@ -208,6 +209,9 @@ private:
     socklen_t addr_size; 
     float udp_data_sent[6]; // [q_fly qd_fly tau_fly] for fly1 and fly2 
     float udp_data_recv[12]; // qd_fly for fly1 and fly2
+
+    bool RbtnotSafe = false;
+
 
 };
 

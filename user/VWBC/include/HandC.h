@@ -5,7 +5,7 @@
 #endif
 
 #ifndef casadi_int
-#define casadi_int long long int
+typedef long long int casadi_int;
 #endif
 
 extern "C" int massAndNle(const casadi_real** arg, casadi_real** res, casadi_int* iw, casadi_real* w, int mem);

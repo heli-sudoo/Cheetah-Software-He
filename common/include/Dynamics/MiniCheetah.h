@@ -108,10 +108,10 @@ Quadruped<T> buildMiniCheetah() {
 //                     0, 0, 1586;
 
   //flywheel with 3 steel plates 
-  // cheetah._flywheelMass = 0.924; 
-  // FlyWheelInertia << 1824, 0, 0,
-  //                 0, 1824, 0,
-  //                 0, 0, 3603;
+  cheetah._flywheelMass = 0.924; 
+  FlyWheelInertia << 1824, 0, 0,
+                  0, 1824, 0,
+                  0, 0, 3603;
 
   // //flywheel with 6 steel plates 
   // cheetah._flywheelMass = 1.35; 
@@ -119,10 +119,10 @@ Quadruped<T> buildMiniCheetah() {
   //                 0, 2882, 0,
   //                 0, 0, 5620;
 
-  cheetah._flywheelMass = 0.997; 
-  FlyWheelInertia << 2281, 0, 0,
-                  0, 2281, 0,
-                  0, 0, 4425;
+  // cheetah._flywheelMass = 0.997; 
+  // FlyWheelInertia << 2281, 0, 0,
+  //                 0, 2281, 0,
+  //                 0, 0, 4425;
 
 
 
