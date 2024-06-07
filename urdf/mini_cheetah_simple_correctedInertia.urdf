@@ -6,25 +6,30 @@
 <!--!!!!!!!!!!!!!!!!!!BODY!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!-->
   <link name="body">
         <inertial>
-            <mass value="3.3"/>
-            <origin xyz="0.0 0.0 0.0"/>
-            <inertia ixx="0.011253" ixy="0" ixz="0" iyy="0.036203" iyz="0" izz="0.042673"/>
+            <!-- <mass value="3.3"/> -->
+            <!-- <origin xyz="0.0 0.0 0.0"/> -->
+            <origin xyz="-0.0233 0.0078 0.0414"/>
+            <mass value="4.79"/>
+            <!-- <inertia ixx="0.011253" ixy="0" ixz="0" iyy="0.036203" iyz="0" izz="0.042673"/> -->
+            <inertia ixx="0.0358" ixy="0.0047" ixz="0.0090" iyy="0.0755" iyz="-0.0029" izz="0.0651"/>
         </inertial>
         <visual>
             <geometry>
               <mesh filename="meshes/mini_body.obj"/>
 	        <!-- <box size="0.23 0.18 0.1"/>x` -->
             </geometry>
-            <origin rpy="0.0 0.0 0.0" xyz="0.0 0.0 0.0"/>
+            <!-- <origin rpy="0.0 0.0 0.0" xyz="0.0 0.0 0.0"/> -->
+            <origin rpy="0.0 0.0 0.0" xyz="-0.0233 0.0078 0.0414"/>
         </visual>
         <collision>
             <geometry>
               <!--mesh filename="meshes/mini_body.stl"/-->
 	      <box size="0.23 0.18 0.1"/>
             </geometry>
-            <origin rpy="0 0 0" xyz="0 0 0"/>
+            <!-- <origin rpy="0 0 0" xyz="0 0 0"/> -->
+            <origin rpy="0.0 0.0 0.0" xyz="-0.0233 0.0078 0.0414"/>
         </collision>
-    </link>       	
+    </link>           	
 
 <!--!!!!!!!!!!!! Front Left Leg !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!-->
     <joint name="torso_to_abduct_fl_j" type="revolute">

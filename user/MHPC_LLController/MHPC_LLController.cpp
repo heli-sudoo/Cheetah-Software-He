@@ -558,7 +558,7 @@ void MHPC_LLController::updateStateEstimate()
     qJ_se.tail<2>()  << flydatas[0].q  , flydatas[1].q ;
     qJd_se.tail<2>() << flydatas[0].qd , flydatas[1].qd;
 
-    printf("flydatas[0].q, flydatas[1].q %f %f",flydatas[0].q, flydatas[1].q);
+    // printf("flydatas[0].q, flydatas[1].q %f %f",flydatas[0].q, flydatas[1].q);
     // printf("flydatas[0].qd, flydatas[1].qd %f %f",flydatas[0].qd, flydatas[1].qd);
 
     x_se << se.position, eul_se, qJ_se, se.vWorld, eulrate_se, qJd_se;

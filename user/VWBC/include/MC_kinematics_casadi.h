@@ -5,7 +5,7 @@
 #endif
 
 #ifndef casadi_int
-typedef long long int casadi_int;
+typedef long long int casadi_int; 
 #endif
 
 extern "C" int footAcc(const casadi_real** arg, casadi_real** res, casadi_int* iw, casadi_real* w, int mem);

@@ -17,4 +17,5 @@ struct MHPC_Command_lcmt {
     float statusTimes[N_mpcsteps][4];          
     float solve_time;
     int32_t iters;
+    float dyn_feas;
 }

@@ -20,7 +20,7 @@
 #endif
 
 #ifndef casadi_int
-typedef long long int casadi_int;
+typedef long long int casadi_int; 
 #endif
 
 /* Add prefix to internal symbols */

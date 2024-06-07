@@ -68,63 +68,66 @@ Quadruped<T> buildMiniCheetah() {
   // With weighted steel plates                  
   // cheetah._flywheelMass = 1.69; 
 
-  cheetah._flywheelRyLocation = Vec3<T> (0.0,    0.0,      0.099 + cheetah._bodyHeight *  0.5 );
-  cheetah._flywheelRotorYLocation = Vec3<T> (0.0,    0.0 , 0.099 + cheetah._bodyHeight * 0.5  );
+  cheetah._flywheelRyLocation = Vec3<T> (0.0,    0.0,      0.1 + cheetah._bodyHeight *  0.5 );
+  cheetah._flywheelRotorYLocation = Vec3<T> (0.0,    0.0 , 0.1 + cheetah._bodyHeight * 0.5  );
 
-  cheetah._flywheelRxLocation =     Vec3<T> (-0.102,  0.0,  0.099    + (cheetah._bodyHeight * 0.5) );
-  cheetah._flywheelRotorXLocation = Vec3<T> (-0.102 , 0.0, 0.099 + (cheetah._bodyHeight * 0.5) );
+  cheetah._flywheelRxLocation =     Vec3<T> (-0.13,  0.0,  0.1    + (cheetah._bodyHeight * 0.5) );
+  cheetah._flywheelRotorXLocation = Vec3<T> (-0.13 , 0.0, 0.1 + (cheetah._bodyHeight * 0.5) );
 
 
-  T FlyContMass = 1.0815; //mass of the flywheel container without flywheel
-  Vec3<T> FlyContCoM( -0.0492,0.0103, 0.0857 + cheetah._bodyHeight *  0.5); 
-  T TorsoMass = 3.3;
-  Vec3<T>  TorsoCoM(0.,0.,0.);
-  T BodyMass = FlyContMass + TorsoMass;
-  cheetah._bodyMass = BodyMass;
-  Vec3<T>  BodyCoM = (FlyContCoM * FlyContMass + TorsoCoM * TorsoMass ) / BodyMass;
-  Mat3<T> FlyContInertia; 
-  FlyContInertia << 5857.33,  553.59, -556.29,
-                  553.59,  11778.86,  136.18,
-                 -556.29,  136.18,  10241.77; 
-  FlyContInertia = FlyContInertia * 1e-6;
-  // Parallel axis theorem
-  Mat3<T> TorsoRotInertia;
-  TorsoRotInertia << 11253, 0, 0, 0, 36203, 0, 0, 0, 42673;
-  TorsoRotInertia = TorsoRotInertia * 1e-6;
+  // T FlyContMass = 1.0815; //mass of the flywheel container without flywheel
+  // Vec3<T> FlyContCoM( -0.0492,0.0103, 0.0857 + cheetah._bodyHeight *  0.5); 
+  // T TorsoMass = 3.3;
+  // Vec3<T>  TorsoCoM(0.,0.,0.);
+  // T BodyMass = FlyContMass + TorsoMass;
+  // cheetah._bodyMass = BodyMass;
+  // Vec3<T>  BodyCoM = (FlyContCoM * FlyContMass + TorsoCoM * TorsoMass ) / BodyMass;
+  // Mat3<T> FlyContInertia; 
+  // FlyContInertia << 5857.33,  553.59, -556.29,
+  //                 553.59,  11778.86,  136.18,
+  //                -556.29,  136.18,  10241.77; 
+  // FlyContInertia = FlyContInertia * 1e-6;
+  // // Parallel axis theorem
+  // Mat3<T> TorsoRotInertia;
+  // TorsoRotInertia << 11253, 0, 0, 0, 36203, 0, 0, 0, 42673;
+  // TorsoRotInertia = TorsoRotInertia * 1e-6;
   
-  Vec3<T> BodyToTorso = BodyCoM - TorsoCoM ; 
-  Vec3<T> BodyToFlyCont = BodyCoM - FlyContCoM;
+  // Vec3<T> BodyToTorso = BodyCoM - TorsoCoM ; 
+  // Vec3<T> BodyToFlyCont = BodyCoM - FlyContCoM;
 
-  Mat3<T>BodyRotInertia = TorsoRotInertia + InertiaSkewFn(TorsoMass,BodyToTorso) +
-                  FlyContInertia + InertiaSkewFn(FlyContMass, BodyToFlyCont);
+  // Mat3<T>BodyRotInertia = TorsoRotInertia + InertiaSkewFn(TorsoMass,BodyToTorso) +
+  //                 FlyContInertia + InertiaSkewFn(FlyContMass, BodyToFlyCont);
+
+
+  cheetah._bodyMass = 4.79;
+  Vec3<T> BodyCoM(-0.0233, 0.0078, 0.0414); 
+
+  Mat3<T> BodyRotInertia;
+  BodyRotInertia << 0.0358, 0.0047, 0.0090,
+                    0.0047, 0.0755, -0.0029,
+                    0.0090, -0.0029, 0.0651;
+
 
   Mat3<T> FlyWheelInertia;  
 
   //flywheel with no steel plates
-//   cheetah._flywheelMass = 0.50;
+//   cheetah._flywheelMass = 0.321867 ;
 //   //inertia assumed to point thru Z axis 
-//   FlyWheelInertia << 797, 0, 0,
-//                      0, 797, 0,
-//                     0, 0, 1586;
+//   FlyWheelInertia << 303, 0, 0,
+//                      0, 303, 0,
+//                     0, 0, 583;
 
   //flywheel with 3 steel plates 
-  cheetah._flywheelMass = 0.924; 
-  FlyWheelInertia << 1824, 0, 0,
-                  0, 1824, 0,
-                  0, 0, 3603;
+  cheetah._flywheelMass = 0.728041; 
+  FlyWheelInertia << 1277, 0, 0,
+                  0, 1277, 0,
+                  0, 0, 2519;
 
   // //flywheel with 6 steel plates 
-  // cheetah._flywheelMass = 1.35; 
-  // FlyWheelInertia << 2882, 0, 0,
-  //                 0, 2882, 0,
-  //                 0, 0, 5620;
-
-  // cheetah._flywheelMass = 0.997; 
-  // FlyWheelInertia << 2281, 0, 0,
-  //                 0, 2281, 0,
-  //                 0, 0, 4425;
-
-
+  // cheetah._flywheelMass = 1.134216; 
+  // FlyWheelInertia << 2310, 0, 0,
+  //                 0, 2310, 0,
+  //                 0, 0, 4456;
 
 
 
