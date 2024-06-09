@@ -28,7 +28,7 @@ struct FlyControllerCommand {
 
   void zero();
 
-  T tauFeedForward, tauAct, speedAct, qDes, qdDes,pwmSpeed, pwmTau;
+  T tauFeedForward, qDes, qdDes;
   T kpCartesian, kdCartesian, kpJoint, kdJoint;
 };
 
@@ -44,7 +44,7 @@ struct FlyControllerData {
 
   void zero();
 
-  T q, qd; 
+  T q, qd, tauAct; //speedAct,pwmSpeed, pwmTau;
   // Mat2<T> J;
   T tauEstimate;
   Quadruped<T>* quadruped;

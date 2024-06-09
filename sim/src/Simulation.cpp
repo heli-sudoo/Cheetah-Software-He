@@ -156,8 +156,8 @@ Simulation::Simulation(RobotType robot, Graphics3D* window,
   x0.q[9] = 0.7;
   x0.q[10] = -1.0;
   x0.q[11] = -2.715;
-  x0.q[12] =  0.0; 
-  x0.q[13] =  0.0; 
+  x0.q[12] = 0.0; 
+  x0.q[13] = 0.0; 
 
 
   setRobotState(x0);
@@ -418,8 +418,9 @@ void Simulation::lowLevelControl() {
     //flywheels
     for (int fly = 0; fly < 2; fly++)
     {
-      _flyData.q_fly[fly] = _simulator->getState().q[12 + fly];
-      _flyData.qd_fly[fly] = _simulator->getState().qd[12 + fly];
+      _flyData.q_fly[fly]   = 0.0; //;_simulator->getState().q[12 + fly]; //_simulator->getState().q[12 + fly];
+      _flyData.qd_fly[fly]  = _simulator->getState().qd[12 + fly];
+      _flyData.tau_fly[fly] = _actuatorModels[3].getTorque(_flyBoards[fly].torque_out,_simulator->getState().qd[12 + fly]);   
     } 
 
     // run spine board control:

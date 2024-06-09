@@ -4,6 +4,8 @@
 
 #include <memory>
 #include <qpOASES.hpp>
+#include <iostream>
+
 
 #ifdef USE_PINOCCHIO
 #include <pinocchio/fwd.hpp>

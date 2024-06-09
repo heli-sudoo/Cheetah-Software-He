@@ -111,14 +111,19 @@ if __name__ == "__main__":
     print(FORCE_Y[14:len(force_y)])
     # exit()
     
+    USE_FLY_OPTIONS = {True,False}
     ifas = 0
     # print(len(force_x))
-    for i in range(14,len(force_x)):
-        for j in range(0,len(force_y)):
-            _frc_x = FORCE_X[i,j]
-            _frc_y = FORCE_Y[i,j]
-            ifas = ifas+1 
-            print(f"i %i_frc_x %f _frc_y %f",j,_frc_x,_frc_y)
+    REPEATS = 10
+    for i in range(len(force_x)):
+        for j in range(len(force_y)):
+            for USE_FLY in USE_FLY_OPTIONS:
+                for iRepeats in range(REPEATS):
+
+                    _frc_x = FORCE_X[i,j]
+                    _frc_y = FORCE_Y[i,j]
+                    ifas = ifas+1 
+                    print(f"iRepeat: {iRepeats} for {USE_FLY} with frc_x {_frc_x} frc_y {_frc_y}")
 
 
     print(f"number %i",ifas)

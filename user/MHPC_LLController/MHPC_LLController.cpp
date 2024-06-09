@@ -91,6 +91,7 @@ void MHPC_LLController::initializeController()
     iter_between_mpc_update = 0;
     nsteps_between_mpc_update = 10;
 
+    //zero everything
     for (int i= 0; i < 6 ; i++)
     {
        udp_data_sent[i] = 0.0; 
@@ -434,6 +435,7 @@ void MHPC_LLController::locomotion_ctrl()
         _legController->commands[leg].tauFeedForward << tau_ff_leg[0], tau_ff_leg.tail<2>();
         _legController->commands[leg].qDes << qDes_leg[0], qDes_leg.tail<2>();
         _legController->commands[leg].qdDes << qdDes_leg[0], qdDes_leg.tail<2>();
+        // _legController->commands[leg].GRF << GRF_out.segment<3>(3*LegIDMap[leg]);
         if (contactStatus[leg])
         {
             _legController->commands[leg].kpJoint = KpMat_joint * 0.25;
@@ -461,20 +463,20 @@ void MHPC_LLController::locomotion_ctrl()
             _flyController->commands[fly].kpJoint = KpMat_joint(0,0); 
             _flyController->commands[fly].kdJoint = KdMat_joint(0,0); 
                 
-            udp_data_recv_mutex.lock(); 
+            // udp_data_recv_mutex.lock(); 
 
-            //Data we need
-            _flyController->commands[fly].tauAct   = udp_data_recv[fly];
-            _flyController->commands[fly].speedAct = udp_data_recv[2+fly];
-            //Data to verify out data 
-            _flyController->commands[fly].pwmTau   = udp_data_recv[4+fly];
-            _flyController->commands[fly].pwmSpeed = udp_data_recv[6+fly];
+            // //Data we need
+            // _flyController->datas[fly].tauAct   = udp_data_recv[fly];
+            // _flyController->datas[fly].speedAct = udp_data_recv[2+fly];
+            // //Data to verify out data 
+            // _flyController->datas[fly].pwmTau   = udp_data_recv[4+fly];
+            // _flyController->datas[fly].pwmSpeed = udp_data_recv[6+fly];
 
-            _flyController->datas[fly].q =  0;  ///udp_data_recv[2+fly] * 0.10472 * _controlParameters->controller_dt; 
-            _flyController->datas[fly].qd =  udp_data_recv[2+fly]; 
-            // _flyController->datas[fly].qd =  ( (udp_data_recv[fly] / 21.0f) * 1000 * 8.77)   * 0.10472;
+            // _flyController->datas[fly].q =  0;  ///udp_data_recv[2+fly] * 0.10472 * _controlParameters->controller_dt; 
+            // _flyController->datas[fly].qd =  udp_data_recv[2+fly]; 
+            // // _flyController->datas[fly].qd =  ( (udp_data_recv[fly] / 21.0f) * 1000 * 8.77)   * 0.10472;
 
-            udp_data_recv_mutex.unlock();
+            // udp_data_recv_mutex.unlock();
         }
         else{
             printf("\n Flywheel disabled"); 
@@ -484,15 +486,15 @@ void MHPC_LLController::locomotion_ctrl()
             _flyController->commands[fly].kpJoint = 0.0f;
             _flyController->commands[fly].kdJoint = 0.0f; 
 
-            udp_data_recv_mutex.lock(); 
+            // udp_data_recv_mutex.lock(); 
 
-            _flyController->commands[fly].tauAct  = udp_data_recv[fly];
-            _flyController->commands[fly].speedAct = udp_data_recv[2+fly];
+            // _flyController->datas[fly].tauAct  = udp_data_recv[fly];
+            // _flyController->datas[fly].speedAct = udp_data_recv[2+fly];
 
-            _flyController->commands[fly].pwmTau = udp_data_recv[4+fly];
-            _flyController->commands[fly].pwmSpeed = udp_data_recv[6+fly];
+            // _flyController->datas[fly].pwmTau = udp_data_recv[4+fly];
+            // _flyController->datas[fly].pwmSpeed = udp_data_recv[6+fly];
 
-            udp_data_recv_mutex.unlock();
+            // udp_data_recv_mutex.unlock();
 
         }
 
@@ -530,6 +532,9 @@ void MHPC_LLController::resolveMPCIfNeeded()
 
         std::copy(qJ_se.begin(), qJ_se.end(), mpc_data.qJ);
         std::copy(qJd_se.begin(), qJd_se.end(), mpc_data.qJd);
+        
+        //Copy over the GRF force even though we dont use them for the control
+        std::copy(mpc_solution.GRF.begin(),mpc_solution.GRF.end(),mpc_data.GRF_MPC);
 
         mpc_data.robotFailed = RbtnotSafe; 
 
@@ -824,18 +829,18 @@ void MHPC_LLController::standup_ctrl_run()
         _flyController->commands[fly].kpJoint = Kp(0,0);
         _flyController->commands[fly].kdJoint = Kd(0,0);
         
-        udp_data_recv_mutex.lock(); 
+        // udp_data_recv_mutex.lock(); 
 
-        _flyController->commands[fly].tauAct   = udp_data_recv[fly];
-        _flyController->commands[fly].speedAct = udp_data_recv[2+fly];
-        _flyController->commands[fly].pwmTau   = udp_data_recv[4+fly];
-        _flyController->commands[fly].pwmSpeed = udp_data_recv[6+fly];
+        // _flyController->datas[fly].tauAct   = udp_data_recv[fly];
+        // _flyController->datas[fly].speedAct = udp_data_recv[2+fly];
+        // _flyController->datas[fly].pwmTau   = udp_data_recv[4+fly];
+        // _flyController->datas[fly].pwmSpeed = udp_data_recv[6+fly];
 
 
-        _flyController->datas[fly].q  =  udp_data_recv[2+fly] * _controlParameters->controller_dt;
-        _flyController->datas[fly].qd =  udp_data_recv[2+fly] ;  // rpm * 0.10472 = rad/s
+        // _flyController->datas[fly].q  =  udp_data_recv[2+fly] * _controlParameters->controller_dt;
+        // _flyController->datas[fly].qd =  udp_data_recv[2+fly] ;  // rpm * 0.10472 = rad/s
 
-        udp_data_recv_mutex.unlock();
+        // udp_data_recv_mutex.unlock();
     }
     iter_standup++;
 }

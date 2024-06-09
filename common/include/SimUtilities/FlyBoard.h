@@ -33,6 +33,12 @@ struct FlyData {
   float q_fly[2];
   
   float qd_fly[2];
+  
+  float tau_fly[2]; 
+
+  // float speed_fly[2];
+  // float pwmSpeed_fly[2];
+  // float pwmTau_fly[2];
 
   int32_t flags[2];
 };

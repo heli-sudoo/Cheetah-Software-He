@@ -16,10 +16,6 @@
 template <typename T>
 void FlyControllerCommand<T>::zero() {
   tauFeedForward = T();
-  tauAct = T();
-  speedAct = T();
-  pwmTau = T(); 
-  pwmSpeed = T();
   qDes  =  T();
   qdDes = T();
   kpCartesian = T();
@@ -36,6 +32,10 @@ void FlyControllerData<T>::zero() {
   q  = T();
   qd = T();
   tauEstimate = T();
+  tauAct = T();
+  // speedAct = T();
+  // pwmTau = T(); 
+  // pwmSpeed = T();
 }
 
 /*!
@@ -78,9 +78,16 @@ template <typename T>
 void FlyController<T>::updateData(const FlyData* flyData) {
   for (int fly = 0; fly < 2; fly++) {
     // q:
-    datas[fly].q = flyData->q_fly[fly];
-    datas[fly].qd = flyData->qd_fly[fly];
+    datas[fly].q        = flyData->q_fly[fly];
+    datas[fly].qd       = flyData->qd_fly[fly];
+    datas[fly].tauAct   = flyData->tau_fly[fly];
+    // datas[fly].speedAct = flyData->speed_fly[fly];
+    // datas[fly].pwmSpeed = flyData->pwmSpeed_fly[fly];
+    // datas[fly].pwmTau   = flyData->pwmTau_fly[fly]; 
     // datas[fly].q  = flyData->q_fly[fly];
+    // datas[fly].tauAct
+    // datas[fly].speedAct 
+    // datas[fly].pwmSpeed, pwmTau;
 
   // #ifdef MINI_CHEETAH_BUILD
 
@@ -144,13 +151,14 @@ void FlyController<T>::updateCommand(FlyCommand* flyCommand) {
     flyCommand->q_des_fly[fly] = commands[fly].qDes;
 
     flyCommand->qd_des_fly[fly] = commands[fly].qdDes;
-    
+
     // estimate torque
     datas[fly].tauEstimate =
         flyTorque +
         commands[fly].kpJoint * (commands[fly].qDes -  datas[fly].q) +
         commands[fly].kdJoint * (commands[fly].qdDes - datas[fly].qd);
 
+    
     //Ngangan TAG  -- this is not necessary
     flyCommand->flags[fly] = _flysEnabled ? 1 : 0;
 
@@ -207,23 +215,20 @@ void FlyController<T>::setLcm(fly_control_data_lcmt *lcmData, fly_control_comman
 
     for (int fly = 0; fly < 2; fly++)
     {
-      lcmData->q[fly] = datas[fly].q;
-      lcmData->qd[fly] = datas[fly].qd;
-      lcmData->tau_est[fly] = datas[fly].tauEstimate;
-
-      lcmData->tau_act[fly]   = commands[fly].tauAct; 
-      lcmData->speed_act[fly] = commands[fly].speedAct;
+      lcmData->q[fly]         = datas[fly].q;
+      lcmData->qd[fly]        = datas[fly].qd;
+      lcmData->tau_est[fly]   = datas[fly].tauEstimate;
+      lcmData->tau_act[fly]   = datas[fly].tauAct; 
+      // lcmData->speed_act[fly] = datas[fly].speedAct;
 
       //Doing this mainly to ensure data is transformed the right way
-      lcmData->pwm_speed[fly] = commands[fly].pwmSpeed;
-      lcmData->pwm_tau[fly]   = commands[fly].pwmTau; 
+      // lcmData->pwm_speed[fly] = datas[fly].pwmSpeed;
+      // lcmData->pwm_tau[fly]   = datas[fly].pwmTau; 
 
 
-      lcmCommand->tau_ff[fly] = commands[fly].tauFeedForward;
-    
-      lcmCommand->q_des[fly] = commands[fly].qDes;
-      lcmCommand->qd_des[fly] =  commands[fly].qdDes;
-
+      lcmCommand->tau_ff[fly]       = commands[fly].tauFeedForward;
+      lcmCommand->q_des[fly]        = commands[fly].qDes;
+      lcmCommand->qd_des[fly]       = commands[fly].qdDes;
       lcmCommand->kp_cartesian[fly] = commands[fly].kpCartesian;
       lcmCommand->kd_cartesian[fly] = commands[fly].kdCartesian;
 

@@ -280,6 +280,8 @@ void LegController<T>::setLcm(leg_control_data_lcmt *lcmData, leg_control_comman
             lcmData->p[idx] = datas[leg].p[axis];
             lcmData->v[idx] = datas[leg].v[axis];
             lcmData->tau_est[idx] = datas[leg].tauEstimate[axis];
+            // lcmData->f_ff_felt[idx] = commands[leg].forceFeedForward[axis];
+
 
             lcmCommand->tau_ff[idx] = commands[leg].tauFeedForward[axis];
             lcmCommand->f_ff[idx] = commands[leg].forceFeedForward[axis];
