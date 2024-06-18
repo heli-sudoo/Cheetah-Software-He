@@ -25,7 +25,7 @@ import numpy as np
 #Otherwise change screen resolution 
 
 USE_THREADS = True
-SIM_SPEED  = 0.8    
+SIM_SPEED  = 1.0  
 recognition_confidence = 0.75
 
 REPEATS     = 10
@@ -280,20 +280,19 @@ USE_FLY_OPTIONS = {True,False}
 
 #Activate the next few lines to do a full run 
 #------------------FROM HERE-------------------
-for iRepeats in range(REPEATS):
-    # for i in range(len(force_x)):
-        # for j in range(len(force_y)):  
-    for i in range(14,len(force_x)):
-        for j in range(0,len(force_y)):
 
-            #When the kick will be applied, we want it applied at same randomized for both fly and nofly
-            time_of_kick = random.uniform(2, 7)
-            
-            for USE_FLY in USE_FLY_OPTIONS:
+for i in range(len(force_x)):
+    for j in range(len(force_y)):
+        for USE_FLY in USE_FLY_OPTIONS:
+            for iRepeats in range(REPEATS):
+
+                #When the kick will be applied, we want it applied at same randomized for both fly and nofly
+                time_of_kick = random.uniform(2, 7)
+
                 print(f"Are we using the FLYWHEEL: {USE_FLY}") 
 
-                _frc_x = FORCE_X[i,j]
-                _frc_y = FORCE_Y[i,j]
+                _frc_x = 2.0 #FORCE_X[i,j]
+                _frc_y = 0.2 #FORCE_Y[i,j]
 
                 #         print(f"Force applied will be (x,y) ({_frc_x},{_frc_y})")
                 #------------------TO HERE-------------------
@@ -316,7 +315,7 @@ for iRepeats in range(REPEATS):
                 # KICK_menu_position = pyautogui.locateCenterOnScreen(KICK_selector_image, confidence=recognition_confidence)
                 # FULLSEND_menu_position = pyautogui.locateCenterOnScreen(FULLSEND_selector_image, confidence=recognition_confidence)
                 #SLOW DOWN THE SIMULATION
-            
+
                 if MC_menu_position is None:
                     print("\n------SIMULATOR NEVER STARTED-------\n")
 
@@ -408,15 +407,14 @@ for iRepeats in range(REPEATS):
                 #Avoid naming conflicts -- add 3 random chars at the end of file_name
                 random_string = ''.join(random.choices(string.ascii_letters + string.digits, k=3))
                 
-
                 
                 if USE_FLY:
-                    path_fly_no_fly ="/media/jnganga/Internal Storage1/jnganga/MC_SIM_MAY24_MOREDATA/FLY"
+                    path_fly_no_fly ="/media/jnganga/Internal Storage1/jnganga/GRF_Scoped/FLY"
                     file_name = "lcmlog_fx"+str(_frc_x)+"_fy"+str(float(_frc_y))+"_time"+str(time_of_kick)+"_fly"+random_string
 
                 else:
 
-                    path_fly_no_fly ="/media/jnganga/Internal Storage1/jnganga/MC_SIM_MAY24_MOREDATA/NOFLY"
+                    path_fly_no_fly ="/media/jnganga/Internal Storage1/jnganga/GRF_Scoped/NOFLY"
                     file_name = "lcmlog_fx"+str(_frc_x)+"_fy"+str(float(_frc_y))+"_time"+str(time_of_kick)+"_nofly"+random_string
 
                 lcmlog_proc = subprocess.Popen(['sh',lcmlog_path,path_fly_no_fly,file_name], start_new_session=False)
