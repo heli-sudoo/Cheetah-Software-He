@@ -2,3 +2,4 @@
 *.svg
 *.png
 data*
+!PNG/*.png 
