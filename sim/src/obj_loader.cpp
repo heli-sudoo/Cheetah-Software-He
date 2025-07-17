@@ -7,7 +7,7 @@
  */
 
 #include "obj_loader.h"
-
+#include <cstdint>
 #include <assert.h>
 #include <cstdlib>
 #include <cstring>
